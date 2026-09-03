@@ -64,13 +64,23 @@ test('settings exposes exactly one switch for every homepage widget', () => {
   assert.match(workspaceJs, /at_least_one_required/);
 });
 
-test('Codex usage widget exposes live quota, reset time, and a manual refresh without identity fields', () => {
+test('Codex usage widget exposes live quota, reset credits, and a manual refresh without identity fields', () => {
   assert.match(html, /data-home-module="usage"/);
   assert.match(html, /id="usage-window-list"/);
   assert.match(html, /id="usage-refresh"/);
+  assert.match(html, /id="usage-reset-summary"/);
   assert.match(appJs, /getUsageSnapshot/);
   assert.match(appJs, /formatUsageReset/);
+  assert.match(appJs, /resetCredits\.availableCount/);
   assert.doesNotMatch(appJs, /accountEmail/);
+});
+
+test('settings exposes a persistent accessible light and dark appearance switch', () => {
+  assert.match(html, /id="settings-theme-toggle"/);
+  assert.match(html, /role="switch"/);
+  assert.match(appJs, /notch-color-theme-v1/);
+  assert.match(appJs, /documentElement\.dataset\.theme/);
+  assert.match(stylesCss, /:root\[data-theme='light'\]/);
 });
 
 test('hidden visual widgets stop presentation-only background work', () => {

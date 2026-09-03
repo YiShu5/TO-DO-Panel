@@ -156,7 +156,7 @@
                     <p class="usage-message" id="usage-message">展开后读取实时用量…</p>
                   </div>
                 </div>
-                <div class="usage-foot"><span>CodexBar · 本机读取</span><time id="usage-updated">等待刷新</time></div>
+                <div class="usage-foot"><span id="usage-reset-summary">重置次数读取中…</span><time id="usage-updated">等待刷新</time></div>
               </section>
 
               <!-- 快速录音与实时转写 -->
@@ -489,6 +489,14 @@
                 <section class="tile settings-card settings-device-card">
                   <div class="settings-card-heading">
                     <div><span class="tile-label">这台 Mac</span><strong>本机与唤出</strong></div>
+                  </div>
+                  <div class="settings-device-row settings-theme-row">
+                    <div><span>外观</span><strong id="settings-theme-label">深色模式</strong></div>
+                    <button class="settings-theme-toggle" id="settings-theme-toggle" type="button" role="switch" aria-checked="false" aria-label="切换到浅色模式">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="12" cy="12" r="3.5"/><path d="M12 2v2M12 20v2M4.93 4.93l1.42 1.42M17.65 17.65l1.42 1.42M2 12h2M20 12h2M4.93 19.07l1.42-1.42M17.65 6.35l1.42-1.42"/></svg>
+                      <i aria-hidden="true"></i>
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M20.4 15.2A8 8 0 0 1 8.8 3.6a8.5 8.5 0 1 0 11.6 11.6Z"/></svg>
+                    </button>
                   </div>
                   <div class="settings-device-row">
                     <div><span>唤出快捷键</span><strong id="settings-shortcut-value">Space</strong></div>

@@ -490,6 +490,33 @@ function normalizeCodexBarSnapshot(value) {
   };
 }
 
+// `codexbar usage` contains account identity and credit metadata that the
+// renderer does not need. Keep only the aggregate reset count and nearest
+// expiry so private account details never cross the IPC boundary.
+function normalizeCodexResetCredits(value, now = Date.now()) {
+  const providers = Array.isArray(value) ? value : [value];
+  const provider = providers.find((item) => item && item.provider === 'codex');
+  const source = provider && provider.usage && provider.usage.codexResetCredits;
+  const count = Number(source && source.availableCount);
+  if (!source || !Number.isFinite(count)) return null;
+
+  const safeDate = (input) => {
+    if (typeof input !== 'string') return null;
+    const date = new Date(input);
+    return Number.isFinite(date.getTime()) ? date.toISOString() : null;
+  };
+  const expiryDates = (Array.isArray(source.credits) ? source.credits : [])
+    .filter((credit) => credit && credit.status === 'available')
+    .map((credit) => safeDate(credit.expires_at || credit.expiresAt))
+    .filter((date) => date && new Date(date).getTime() > now)
+    .sort();
+
+  return {
+    availableCount: Math.max(0, Math.min(99, Math.floor(count))),
+    expiresAt: expiryDates[0] || null,
+  };
+}
+
 const CONFIGURABLE_FEATURES = new Set(['todo', 'notes', 'links', 'recordings', 'credentials', 'clip']);
 
 function updateFeaturePreference(features, featureId, enabled) {
@@ -599,6 +626,7 @@ module.exports = {
   taskNotificationWindowPolicy,
   reduceClipboardObservation,
   normalizeCodexBarSnapshot,
+  normalizeCodexResetCredits,
   createWorkspacePersistenceGate,
   hoverSpacePollingPolicy,
   updateFeaturePreference,

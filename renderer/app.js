@@ -15,6 +15,34 @@ const statusToast = document.getElementById('status-toast');
 const statusToastMessage = document.getElementById('status-toast-message');
 const statusToastAction = document.getElementById('status-toast-action');
 
+const THEME_STORAGE_KEY = 'notch-color-theme-v1';
+const settingsThemeToggle = document.getElementById('settings-theme-toggle');
+const settingsThemeLabel = document.getElementById('settings-theme-label');
+
+function applyColorTheme(theme, persist = false) {
+  const nextTheme = theme === 'light' ? 'light' : 'dark';
+  document.documentElement.dataset.theme = nextTheme;
+  if (persist) localStorage.setItem(THEME_STORAGE_KEY, nextTheme);
+  if (settingsThemeLabel) settingsThemeLabel.textContent = nextTheme === 'light' ? '浅色模式' : '深色模式';
+  if (settingsThemeToggle) {
+    const light = nextTheme === 'light';
+    settingsThemeToggle.setAttribute('aria-checked', String(light));
+    settingsThemeToggle.setAttribute('aria-label', light ? '切换到深色模式' : '切换到浅色模式');
+  }
+  document.dispatchEvent(new CustomEvent('notch:themechange', { detail: { theme: nextTheme } }));
+  return nextTheme;
+}
+
+applyColorTheme(localStorage.getItem(THEME_STORAGE_KEY));
+settingsThemeToggle?.addEventListener('click', () => {
+  applyColorTheme(document.documentElement.dataset.theme === 'light' ? 'dark' : 'light', true);
+});
+
+window.NotchTheme = Object.freeze({
+  get: () => document.documentElement.dataset.theme,
+  set: (theme) => applyColorTheme(theme, true),
+});
+
 function collectLocalStorageSnapshot() {
   const result = {};
   for (let index = 0; index < localStorage.length; index += 1) {
@@ -2805,6 +2833,7 @@ const usagePlan = document.getElementById('usage-plan');
 const usageRemaining = document.getElementById('usage-remaining');
 const usageCaption = document.getElementById('usage-caption');
 const usageWindowList = document.getElementById('usage-window-list');
+const usageResetSummary = document.getElementById('usage-reset-summary');
 const usageUpdated = document.getElementById('usage-updated');
 const usageRefresh = document.getElementById('usage-refresh');
 let usageRefreshing = false;
@@ -2855,6 +2884,10 @@ function renderUsageError(error) {
     usageWindowList.replaceChildren(message);
   }
   if (usageUpdated) usageUpdated.textContent = '尚未更新';
+  if (usageResetSummary) {
+    usageResetSummary.textContent = '重置次数暂不可用';
+    usageResetSummary.removeAttribute('data-available');
+  }
 }
 
 function renderUsageSnapshot(snapshot) {
@@ -2897,6 +2930,23 @@ function renderUsageSnapshot(snapshot) {
       fragment.appendChild(row);
     });
     usageWindowList.replaceChildren(fragment);
+  }
+  if (usageResetSummary) {
+    const resetCredits = snapshot.resetCredits;
+    if (resetCredits && Number.isFinite(resetCredits.availableCount)) {
+      const count = resetCredits.availableCount;
+      let expiry = '';
+      const expiryDate = resetCredits.expiresAt && new Date(resetCredits.expiresAt);
+      if (expiryDate && Number.isFinite(expiryDate.getTime())) {
+        expiry = ` · ${new Intl.DateTimeFormat('zh-CN', { month: 'numeric', day: 'numeric' }).format(expiryDate)} 到期`;
+      }
+      usageResetSummary.textContent = `完整重置 ${count} 次${expiry}`;
+      if (count > 0) usageResetSummary.setAttribute('data-available', 'true');
+      else usageResetSummary.removeAttribute('data-available');
+    } else {
+      usageResetSummary.textContent = '重置次数暂不可用';
+      usageResetSummary.removeAttribute('data-available');
+    }
   }
   if (usageUpdated) {
     const updatedAt = provider.updatedAt || snapshot.generatedAt;

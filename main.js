@@ -50,6 +50,7 @@ const {
   hoverSpacePollingPolicy,
   reduceClipboardObservation,
   normalizeCodexBarSnapshot,
+  normalizeCodexResetCredits,
 } = require('./main-services');
 
 // Keep the historical data directory so upgrading users retain notes, links,
@@ -1459,8 +1460,8 @@ function readCodexUsage(force = false) {
   const binary = findCodexBarBinary();
   if (!binary) return Promise.resolve({ ok: false, error: 'not_installed' });
 
-  codexUsageReadInFlight = new Promise((resolve) => {
-    execFile(binary, ['dashboard', '--identity', 'redacted', '--timeout', '30'], {
+  const runCodexBarJson = (args) => new Promise((resolve) => {
+    execFile(binary, args, {
       timeout: 45000,
       maxBuffer: 1024 * 1024,
       windowsHide: true,
@@ -1469,17 +1470,26 @@ function readCodexUsage(force = false) {
         resolve({ ok: false, error: error.killed ? 'timeout' : 'unavailable' });
         return;
       }
-      let parsed;
       try {
-        parsed = JSON.parse(stdout);
+        resolve({ ok: true, value: JSON.parse(stdout) });
       } catch (parseError) {
         resolve({ ok: false, error: 'invalid_response' });
-        return;
       }
-      const snapshot = normalizeCodexBarSnapshot(parsed);
-      if (snapshot.ok) codexUsageCache = { cachedAt: Date.now(), snapshot };
-      resolve(snapshot);
     });
+  });
+
+  codexUsageReadInFlight = Promise.all([
+    runCodexBarJson(['dashboard', '--identity', 'redacted', '--timeout', '30']),
+    runCodexBarJson(['usage', '--provider', 'codex', '--source', 'oauth', '--format', 'json']),
+  ]).then(([dashboardResult, resetResult]) => {
+    if (!dashboardResult.ok) return dashboardResult;
+    const snapshot = normalizeCodexBarSnapshot(dashboardResult.value);
+    if (!snapshot.ok) return snapshot;
+    snapshot.resetCredits = resetResult.ok
+      ? normalizeCodexResetCredits(resetResult.value)
+      : null;
+    codexUsageCache = { cachedAt: Date.now(), snapshot };
+    return snapshot;
   }).finally(() => {
     codexUsageReadInFlight = null;
   });

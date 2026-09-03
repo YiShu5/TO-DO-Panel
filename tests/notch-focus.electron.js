@@ -252,6 +252,7 @@ async function main() {
             shortcut: Boolean(document.getElementById('settings-shortcut-change')),
             workspace: Boolean(document.getElementById('settings-workspace-choose')),
             autoLaunch: Boolean(document.getElementById('settings-auto-launch')),
+            theme: Boolean(document.getElementById('settings-theme-toggle')),
           });
         }, 80);
       })
@@ -271,7 +272,42 @@ async function main() {
       shortcut: true,
       workspace: true,
       autoLaunch: true,
+      theme: true,
     });
+
+    const themeSwitchAudit = await window.webContents.executeJavaScript(`
+      (() => {
+        const toggle = document.getElementById('settings-theme-toggle');
+        const initial = document.documentElement.dataset.theme;
+        toggle.click();
+        const light = {
+          theme: document.documentElement.dataset.theme,
+          label: document.getElementById('settings-theme-label').textContent,
+          checked: toggle.getAttribute('aria-checked'),
+          stored: localStorage.getItem('notch-color-theme-v1'),
+          colorScheme: getComputedStyle(document.documentElement).colorScheme,
+        };
+        toggle.click();
+        return {
+          initial,
+          light,
+          restored: document.documentElement.dataset.theme,
+          restoredStored: localStorage.getItem('notch-color-theme-v1'),
+        };
+      })()
+    `);
+    assert.deepEqual(themeSwitchAudit, {
+      initial: 'dark',
+      light: {
+        theme: 'light',
+        label: '浅色模式',
+        checked: 'true',
+        stored: 'light',
+        colorScheme: 'light',
+      },
+      restored: 'dark',
+      restoredStored: 'dark',
+    }, '外观开关必须即时切换，并将选择持久化');
 
     const credentialSelectionAudit = await window.webContents.executeJavaScript(`
       (async () => {

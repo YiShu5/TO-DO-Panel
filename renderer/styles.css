@@ -3630,7 +3630,7 @@ body {
 .settings-mirror-card p { max-width: 250px; }
 
 .settings-device-card { display: flex; flex-direction: column; }
-.settings-device-row { min-width: 0; display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 60px; border-bottom: 1px solid var(--hairline-soft); }
+.settings-device-row { min-width: 0; display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 48px; border-bottom: 1px solid var(--hairline-soft); }
 .settings-device-row > div { min-width: 0; display: flex; flex-direction: column; gap: 3px; }
 .settings-device-row span { color: var(--text-3); font-size: 9px; }
 .settings-device-row strong { overflow: hidden; color: var(--text-2); font-size: 10px; font-weight: 540; text-overflow: ellipsis; white-space: nowrap; }
@@ -3641,6 +3641,36 @@ body {
 .settings-workspace-path { max-width: 290px; }
 .settings-device-actions { flex: 0 0 auto; display: flex; gap: 6px; }
 .settings-auto-launch-row { position: relative; cursor: pointer; border-bottom: 0; }
+.settings-theme-toggle {
+  position: relative;
+  width: 68px;
+  height: 30px;
+  display: grid;
+  grid-template-columns: 18px 20px 18px;
+  place-items: center;
+  gap: 2px;
+  padding: 0 4px !important;
+  border: 1px solid rgba(255,255,255,.07) !important;
+  border-radius: 999px !important;
+  color: var(--text-3) !important;
+  background: rgba(255,255,255,.055) !important;
+}
+.settings-theme-toggle svg { width: 13px; height: 13px; }
+.settings-theme-toggle i {
+  position: absolute;
+  width: 24px;
+  height: 24px;
+  left: 5px;
+  border-radius: 50%;
+  background: linear-gradient(145deg, #f8f9fc, #cfd3dc);
+  box-shadow: 0 3px 9px rgba(0,0,0,.28);
+  transform: translateX(34px);
+  transition: transform var(--d-base) var(--ease-spring), background var(--d-fast) var(--ease);
+}
+.settings-theme-toggle svg { position: relative; z-index: 1; }
+.settings-theme-toggle[aria-checked='true'] i { transform: translateX(0); background: linear-gradient(145deg, #fff, #e7e9ef); }
+.settings-theme-toggle[aria-checked='true'] svg:first-child,
+.settings-theme-toggle:not([aria-checked='true']) svg:last-child { color: #22252c; }
 .settings-inline-note { min-height: 14px; margin-top: auto !important; padding-top: 6px; color: #65d9a1 !important; }
 .settings-inline-note.error { color: #ff746d !important; }
 
@@ -5635,6 +5665,8 @@ body {
 .usage-window time { color: rgba(208,225,227,.46); font: 500 7px/1.2 var(--font-ui); }
 .usage-message { align-self: center; margin: 0; color: rgba(222,237,239,.48); font-size: 8px; line-height: 1.45; text-align: center; }
 .usage-foot { position: relative; z-index: 1; justify-content: space-between; gap: 8px; color: rgba(202,222,224,.38); font-size: 7px; }
+.usage-foot > span { min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.usage-foot > span[data-available='true'] { color: #f2c87d; }
 .usage-foot time { white-space: nowrap; }
 
 .home-bento > .home-usage[data-layout-variant='mini'] { padding: 8px; gap: 3px; }
@@ -5655,3 +5687,126 @@ body {
 .home-bento > .home-usage[data-layout-variant='full'] .usage-body { display: flex; flex-direction: column; }
 .home-bento > .home-usage[data-layout-variant='tall'] .usage-overview,
 .home-bento > .home-usage[data-layout-variant='full'] .usage-overview { flex: 0 0 86px; }
+
+/* ============ 明亮外观 ============ */
+:root[data-theme='dark'] { color-scheme: dark; }
+:root[data-theme='light'] {
+  color-scheme: light;
+  --bg-base: #eef1f6;
+  --surface-1: #ffffff;
+  --surface-2: #f3f5f8;
+  --surface-3: #e7eaf0;
+  --hairline: rgba(26, 32, 44, .12);
+  --hairline-soft: rgba(26, 32, 44, .075);
+  --highlight-top: rgba(255, 255, 255, .88);
+  --tile-highlight: rgba(255, 255, 255, .72);
+  --squircle-highlight: rgba(255, 255, 255, .92);
+  --text-1: #191b21;
+  --text-2: #454a55;
+  --text-3: #707784;
+  --text-4: #969ca7;
+  --scrollbar-thumb: rgba(31, 36, 47, .13);
+  --scrollbar-thumb-hover: rgba(31, 36, 47, .26);
+  --tooltip-bg: rgba(30, 32, 38, .94);
+  --item-hover: rgba(39, 50, 69, .055);
+  --panel-shadow: rgba(38, 45, 58, .22);
+  --clip-text: rgba(36, 42, 52, .2);
+  --clip-border-text: rgba(36, 42, 52, .12);
+}
+
+html[data-theme='light'] #app.collapsed .notch { background: #000; }
+html[data-theme='light'] .panel::before {
+  background:
+    radial-gradient(70% 80% at 50% -10%, rgba(106, 139, 196, .14), transparent 62%),
+    linear-gradient(155deg, rgba(250,251,253,.99), rgba(231,235,242,.995) 68%);
+  border-color: rgba(44, 53, 68, .09);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.9), 0 24px 70px rgba(33,41,56,.24);
+}
+html[data-theme='light'] #app.expanded .panel::after { opacity: .2; }
+html[data-theme='light'] .tabs {
+  border-color: rgba(34, 42, 56, .08);
+  background: rgba(33, 42, 58, .045);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.72);
+}
+html[data-theme='light'] .tab-indicator {
+  border-color: rgba(35,43,57,.08);
+  background: linear-gradient(180deg, rgba(255,255,255,.98), rgba(240,243,248,.95));
+  box-shadow: inset 0 1px 0 #fff, 0 4px 12px rgba(38,45,58,.11);
+}
+html[data-theme='light'] .collapse-btn,
+html[data-theme='light'] .workspace-button,
+html[data-theme='light'] .record-control,
+html[data-theme='light'] .settings-device-row button:not(.settings-theme-toggle) {
+  color: var(--text-2);
+  border-color: rgba(30,38,52,.09);
+  background: linear-gradient(180deg, #fff, #edf0f5);
+  box-shadow: inset 0 1px 0 #fff, 0 4px 12px rgba(38,45,58,.09);
+}
+html[data-theme='light'] .tile,
+html[data-theme='light'] .priority-card,
+html[data-theme='light'] .link-group,
+html[data-theme='light'] .recording-library,
+html[data-theme='light'] .recording-detail {
+  background: radial-gradient(120% 90% at 10% 0%, #fff, transparent 50%), linear-gradient(145deg, #fff, #f1f3f7);
+  box-shadow: inset 0 1px 0 #fff, inset 0 -1px 0 rgba(26,32,44,.05), 0 12px 30px rgba(39,47,60,.11);
+}
+html[data-theme='light'] .tile::after {
+  background: radial-gradient(360px circle at var(--tile-x, 50%) var(--tile-y, 0%), rgba(55,74,105,.06), transparent 48%);
+}
+html[data-theme='light'] .settings-card {
+  border-color: rgba(31,39,52,.07);
+  background: radial-gradient(circle at 88% 0%, rgba(90,137,238,.08), transparent 36%), #fff;
+}
+html[data-theme='light'] .settings-status-list > div,
+html[data-theme='light'] .settings-feature-grid label,
+html[data-theme='light'] .settings-home-module-grid label,
+html[data-theme='light'] .credential-item,
+html[data-theme='light'] .note-library > button,
+html[data-theme='light'] .shortcut-recorder,
+html[data-theme='light'] .command-item {
+  background: rgba(35,44,60,.045);
+}
+html[data-theme='light'] input:not([type='checkbox']):not([type='radio']),
+html[data-theme='light'] textarea,
+html[data-theme='light'] select,
+html[data-theme='light'] .group-link-add button,
+html[data-theme='light'] .credential-actions button {
+  color: var(--text-1);
+  background: rgba(35,44,60,.06);
+  box-shadow: inset 0 0 0 1px rgba(35,44,60,.035);
+}
+html[data-theme='light'] .settings-theme-toggle {
+  border-color: rgba(32,39,52,.09) !important;
+  color: var(--text-3) !important;
+  background: #e6e9ef !important;
+  box-shadow: inset 0 1px 2px rgba(35,42,54,.08) !important;
+}
+html[data-theme='light'] .home-usage {
+  background: radial-gradient(circle at 8% 4%, rgba(73,163,176,.15), transparent 46%), linear-gradient(145deg, #f9fdfd, #e9f1f2);
+}
+html[data-theme='light'] .usage-brand small,
+html[data-theme='light'] .usage-overview span,
+html[data-theme='light'] .usage-window time,
+html[data-theme='light'] .usage-message,
+html[data-theme='light'] .usage-foot { color: rgba(42,67,72,.55); }
+html[data-theme='light'] .usage-overview {
+  background: rgba(255,255,255,.67);
+  box-shadow: inset 0 0 0 1px rgba(44,83,89,.07);
+}
+html[data-theme='light'] .usage-overview strong { color: #225b63; }
+html[data-theme='light'] .usage-window span { color: rgba(35,60,65,.72); }
+html[data-theme='light'] .usage-window strong { color: rgba(29,50,54,.9); }
+html[data-theme='light'] .usage-window > i { background: rgba(40,78,84,.1); }
+html[data-theme='light'] .usage-refresh { color: rgba(31,67,73,.68); background: rgba(255,255,255,.62); }
+html[data-theme='light'] .usage-refresh:hover { color: #204e55; background: #fff; }
+
+/* 图像型模块维持白字，避免浅色主题降低封面上的文字对比度。 */
+html[data-theme='light'] .home-music,
+html[data-theme='light'] .home-pomodoro,
+html[data-theme='light'] .home-mirror {
+  --text-1: #f7f7f8;
+  --text-2: #c7c7cc;
+  --text-3: #9b9ba2;
+  --text-4: #74747c;
+  color: var(--text-1);
+}

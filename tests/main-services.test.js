@@ -29,6 +29,7 @@ const {
   hoverSpacePollingPolicy,
   reduceClipboardObservation,
   normalizeCodexBarSnapshot,
+  normalizeCodexResetCredits,
 } = require('../main-services');
 
 test('CodexBar dashboard data is minimized to usage windows without account identity', () => {
@@ -69,6 +70,30 @@ test('CodexBar dashboard rejects invalid, errored, or empty provider data', () =
     schemaVersion: 1,
     providers: [{ id: 'codex', enabled: true, error: 'unauthorized', windows: [] }],
   }), { ok: false, error: 'provider_unavailable' });
+});
+
+test('Codex reset credits expose only the available count and nearest expiry', () => {
+  const normalized = normalizeCodexResetCredits([{
+    provider: 'codex',
+    account: 'private@example.com',
+    usage: {
+      codexResetCredits: {
+        availableCount: 1,
+        credits: [{
+          id: 'secret-credit-id', status: 'available', title: '完全重置',
+          description: 'one free reset', expires_at: '2026-09-21T00:21:44Z',
+        }],
+      },
+    },
+  }], new Date('2026-09-03T00:00:00Z').getTime());
+  assert.deepEqual(normalized, {
+    availableCount: 1,
+    expiresAt: '2026-09-21T00:21:44.000Z',
+  });
+  assert.equal(JSON.stringify(normalized).includes('private@example.com'), false);
+  assert.equal(JSON.stringify(normalized).includes('secret-credit-id'), false);
+  assert.equal(JSON.stringify(normalized).includes('one free reset'), false);
+  assert.equal(normalizeCodexResetCredits([{ provider: 'claude', usage: {} }]), null);
 });
 
 test('Netease Music history rows expose synchronized song metadata', () => {
