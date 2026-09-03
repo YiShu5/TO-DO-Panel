@@ -49,6 +49,7 @@ const {
   createWorkspacePersistenceGate,
   hoverSpacePollingPolicy,
   reduceClipboardObservation,
+  normalizeCodexBarSnapshot,
 } = require('./main-services');
 
 // Keep the historical data directory so upgrading users retain notes, links,
@@ -1424,6 +1425,67 @@ function createTray() {
   refreshTrayMenu();
 }
 
+let codexUsageCache = null;
+let codexUsageReadInFlight = null;
+
+function findCodexBarBinary() {
+  const candidates = [];
+  if (path.isAbsolute(process.env.CODEXBAR_BIN || '')) candidates.push(process.env.CODEXBAR_BIN);
+  candidates.push(
+    path.join(app.getPath('home'), '.local', 'bin', 'codexbar'),
+    '/opt/homebrew/bin/codexbar',
+    '/usr/local/bin/codexbar',
+    '/Applications/CodexBar.app/Contents/MacOS/CodexBarCLI'
+  );
+  String(process.env.PATH || '').split(path.delimiter).filter(Boolean).forEach((directory) => {
+    candidates.push(path.join(directory, 'codexbar'));
+  });
+  return [...new Set(candidates)].find((candidate) => {
+    try {
+      fs.accessSync(candidate, fs.constants.X_OK);
+      return fs.statSync(candidate).isFile();
+    } catch (error) {
+      return false;
+    }
+  }) || '';
+}
+
+function readCodexUsage(force = false) {
+  const now = Date.now();
+  if (!force && codexUsageCache && now - codexUsageCache.cachedAt < 180000) {
+    return Promise.resolve(codexUsageCache.snapshot);
+  }
+  if (codexUsageReadInFlight) return codexUsageReadInFlight;
+  const binary = findCodexBarBinary();
+  if (!binary) return Promise.resolve({ ok: false, error: 'not_installed' });
+
+  codexUsageReadInFlight = new Promise((resolve) => {
+    execFile(binary, ['dashboard', '--identity', 'redacted', '--timeout', '30'], {
+      timeout: 45000,
+      maxBuffer: 1024 * 1024,
+      windowsHide: true,
+    }, (error, stdout) => {
+      if (error) {
+        resolve({ ok: false, error: error.killed ? 'timeout' : 'unavailable' });
+        return;
+      }
+      let parsed;
+      try {
+        parsed = JSON.parse(stdout);
+      } catch (parseError) {
+        resolve({ ok: false, error: 'invalid_response' });
+        return;
+      }
+      const snapshot = normalizeCodexBarSnapshot(parsed);
+      if (snapshot.ok) codexUsageCache = { cachedAt: Date.now(), snapshot };
+      resolve(snapshot);
+    });
+  }).finally(() => {
+    codexUsageReadInFlight = null;
+  });
+  return codexUsageReadInFlight;
+}
+
 ipcMain.handle('window:set-mode', async (event, mode) => {
   if (mode === 'expanded') await rememberPasteTarget();
   applyMode(mode === 'expanded' ? 'expanded' : 'collapsed');
@@ -1507,6 +1569,7 @@ ipcMain.handle('workspace:save-data', (event, storage) => {
 });
 ipcMain.handle('workspace:open', () => shell.openPath(workspaceRoot()));
 ipcMain.handle('workspace:choose', () => chooseWorkspaceFolder());
+ipcMain.handle('usage:snapshot', (event, payload) => readCodexUsage(payload && payload.force === true));
 
 function getLayoutMetrics(display) {
   const d = display || getWindowDisplay();

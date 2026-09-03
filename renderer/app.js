@@ -2399,11 +2399,12 @@ if (notePreview) {
 const HOME_ORDER_KEY = 'notch-home-order-v3';
 const HOME_SIZES_KEY = 'notch-home-widget-sizes-v2';
 const HOME_HIDDEN_MODULES_KEY = 'notch-home-hidden-modules-v1';
-const HOME_MODULE_REGISTRY = ['music', 'pomodoro', 'recorder', 'windows', 'mirror', 'note', 'commands'];
-const HOME_ORDER_DEFAULTS = ['music', 'pomodoro', 'windows', 'recorder', 'mirror', 'note', 'commands'];
+const HOME_MODULE_REGISTRY = ['music', 'pomodoro', 'recorder', 'windows', 'mirror', 'note', 'commands', 'usage'];
+const HOME_ORDER_DEFAULTS = ['music', 'usage', 'pomodoro', 'windows', 'recorder', 'mirror', 'note', 'commands'];
 const HOME_SIZE_DEFAULTS = {
   music: 'medium',
-  windows: 'large',
+  usage: 'medium',
+  windows: 'medium',
   recorder: 'small',
   mirror: 'medium',
   note: 'medium',
@@ -2422,6 +2423,13 @@ function loadHomeOrder() {
     const saved = Array.isArray(rawSaved)
       ? rawSaved.map((id) => id === 'character' ? 'music' : id)
       : rawSaved;
+    const previousModuleIds = HOME_ORDER_DEFAULTS.filter((id) => id !== 'usage');
+    if (
+      Array.isArray(saved)
+      && saved.length === previousModuleIds.length
+      && new Set(saved).size === previousModuleIds.length
+      && saved.every((id) => previousModuleIds.includes(id))
+    ) return [...saved, 'usage'];
     if (
       Array.isArray(saved)
       && saved.length === HOME_ORDER_DEFAULTS.length
@@ -2437,8 +2445,8 @@ function loadHomeOrder() {
         .sort((a, b) => legacySlots.indexOf(a[1]) - legacySlots.indexOf(b[1]))
         .map(([id]) => id === 'clock' || id === 'character' ? 'music' : id)
         .filter((id) => HOME_ORDER_DEFAULTS.includes(id));
-      if (migrated.length === HOME_ORDER_DEFAULTS.length && new Set(migrated).size === migrated.length) {
-        return migrated;
+      if (migrated.length === previousModuleIds.length && new Set(migrated).size === migrated.length) {
+        return [...migrated, 'usage'];
       }
     }
   } catch (error) {
@@ -2790,6 +2798,148 @@ document.dispatchEvent(new CustomEvent('notch:home-modules-changed', {
   detail: visibilitySnapshot(),
 }));
 if (homeLayoutReadOnly) document.dispatchEvent(new CustomEvent('notch:home-layout-error'));
+
+// ============ 首页 · Codex 用量（CodexBar 本机只读桥接） ============
+const homeUsage = document.getElementById('home-usage');
+const usagePlan = document.getElementById('usage-plan');
+const usageRemaining = document.getElementById('usage-remaining');
+const usageCaption = document.getElementById('usage-caption');
+const usageWindowList = document.getElementById('usage-window-list');
+const usageUpdated = document.getElementById('usage-updated');
+const usageRefresh = document.getElementById('usage-refresh');
+let usageRefreshing = false;
+
+function usageWindowLabel(item) {
+  const labels = {
+    weekly: '周额度',
+    'codex-spark': 'Spark 5 小时',
+    'codex-spark-weekly': 'Spark 周额度',
+  };
+  return labels[item.kind] || item.label || '额度';
+}
+
+function formatUsageReset(resetAt) {
+  if (!resetAt) return '重置时间未知';
+  const date = new Date(resetAt);
+  if (!Number.isFinite(date.getTime())) return '重置时间未知';
+  const now = new Date();
+  const startToday = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+  const startTarget = new Date(date.getFullYear(), date.getMonth(), date.getDate()).getTime();
+  const dayOffset = Math.round((startTarget - startToday) / 86400000);
+  const time = new Intl.DateTimeFormat('zh-CN', {
+    hour: '2-digit', minute: '2-digit', hour12: false,
+  }).format(date);
+  if (dayOffset === 0) return `今天 ${time}`;
+  if (dayOffset === 1) return `明天 ${time}`;
+  return new Intl.DateTimeFormat('zh-CN', {
+    month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false,
+  }).format(date);
+}
+
+function renderUsageError(error) {
+  const messages = {
+    not_installed: '未找到 CodexBar',
+    timeout: '读取超时，点刷新重试',
+    invalid_response: '用量数据格式异常',
+    provider_unavailable: 'Codex 用量暂不可用',
+    unavailable: '暂时无法读取用量',
+  };
+  homeUsage?.setAttribute('data-state', 'error');
+  if (usagePlan) usagePlan.textContent = '本机读取失败';
+  if (usageRemaining) usageRemaining.textContent = '--%';
+  if (usageCaption) usageCaption.textContent = '剩余额度';
+  if (usageWindowList) {
+    const message = document.createElement('p');
+    message.className = 'usage-message';
+    message.textContent = messages[error] || messages.unavailable;
+    usageWindowList.replaceChildren(message);
+  }
+  if (usageUpdated) usageUpdated.textContent = '尚未更新';
+}
+
+function renderUsageSnapshot(snapshot) {
+  const provider = snapshot?.provider;
+  const windows = Array.isArray(provider?.windows) ? provider.windows.slice(0, 3) : [];
+  if (!snapshot?.ok || !windows.length) {
+    renderUsageError(snapshot?.error);
+    return;
+  }
+  const lowest = windows.reduce((current, item) => (
+    item.remainingPercent < current.remainingPercent ? item : current
+  ));
+  const tone = lowest.remainingPercent <= 10 ? 'critical'
+    : lowest.remainingPercent <= 30 ? 'warning' : 'healthy';
+  homeUsage?.setAttribute('data-state', tone);
+  if (usagePlan) usagePlan.textContent = provider.plan || provider.name || 'Codex';
+  if (usageRemaining) usageRemaining.textContent = `${lowest.remainingPercent}%`;
+  if (usageCaption) usageCaption.textContent = `${usageWindowLabel(lowest)}剩余`;
+  if (usageWindowList) {
+    const fragment = document.createDocumentFragment();
+    windows.forEach((item) => {
+      const row = document.createElement('div');
+      row.className = 'usage-window';
+      row.dataset.tone = item.remainingPercent <= 10 ? 'critical'
+        : item.remainingPercent <= 30 ? 'warning' : 'healthy';
+      const heading = document.createElement('div');
+      const label = document.createElement('span');
+      const percent = document.createElement('strong');
+      label.textContent = usageWindowLabel(item);
+      percent.textContent = `剩余 ${item.remainingPercent}%`;
+      heading.append(label, percent);
+      const track = document.createElement('i');
+      const fill = document.createElement('b');
+      fill.style.setProperty('--usage-remaining', `${item.remainingPercent}%`);
+      track.appendChild(fill);
+      const reset = document.createElement('time');
+      reset.dateTime = item.resetAt || '';
+      reset.textContent = `${formatUsageReset(item.resetAt)} 重置`;
+      row.append(heading, track, reset);
+      fragment.appendChild(row);
+    });
+    usageWindowList.replaceChildren(fragment);
+  }
+  if (usageUpdated) {
+    const updatedAt = provider.updatedAt || snapshot.generatedAt;
+    const time = updatedAt && new Date(updatedAt);
+    usageUpdated.textContent = time && Number.isFinite(time.getTime())
+      ? `${new Intl.DateTimeFormat('zh-CN', { hour: '2-digit', minute: '2-digit', hour12: false }).format(time)} 更新`
+      : '刚刚更新';
+    usageUpdated.dateTime = updatedAt || '';
+  }
+}
+
+async function refreshCodexUsage(force = false) {
+  if (usageRefreshing || !window.notchAPI?.getUsageSnapshot) return;
+  if (!force && (!isExpanded || activeTab !== 'home' || window.NotchHome?.isVisible?.('usage') === false)) return;
+  usageRefreshing = true;
+  usageRefresh?.classList.add('is-refreshing');
+  usageRefresh?.setAttribute('aria-busy', 'true');
+  try {
+    const snapshot = await window.notchAPI.getUsageSnapshot({ force });
+    renderUsageSnapshot(snapshot);
+  } catch (error) {
+    renderUsageError('unavailable');
+  } finally {
+    usageRefreshing = false;
+    usageRefresh?.classList.remove('is-refreshing');
+    usageRefresh?.removeAttribute('aria-busy');
+  }
+}
+
+usageRefresh?.addEventListener('click', (event) => {
+  event.stopPropagation();
+  refreshCodexUsage(true);
+});
+document.addEventListener('notch:modechange', (event) => {
+  if (event.detail?.expanded) refreshCodexUsage();
+});
+document.addEventListener('notch:tabchange', (event) => {
+  if (event.detail?.tab === 'home') refreshCodexUsage();
+});
+document.addEventListener('notch:home-modules-changed', (event) => {
+  if (event.detail?.visibleIds?.includes('usage')) refreshCodexUsage();
+});
+setInterval(() => refreshCodexUsage(), 5 * 60 * 1000);
 
 if (homeBento) {
   let pendingLongPress = null;

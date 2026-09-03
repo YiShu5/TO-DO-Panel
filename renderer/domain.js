@@ -649,6 +649,15 @@
       medium: { width: 4, height: 2 },
       large: { width: 4, height: 4 },
     };
+    // 先放面积大的矩形，避免迷你卡片过早切碎网格后触发指数级回溯；
+    // 同尺寸仍保持用户保存的先后顺序。
+    const placementIds = ids.map((id, index) => ({ id, index, ...(dimensions[sizes[id]] || dimensions.small) }))
+      .sort((left, right) => (
+        (right.width * right.height) - (left.width * left.height)
+        || right.height - left.height
+        || left.index - right.index
+      ))
+      .map((item) => item.id);
     const occupied = Array.from({ length: rows }, () => Array(columns).fill(false));
     const placements = {};
 
@@ -669,8 +678,8 @@
     }
 
     function place(index) {
-      if (index >= ids.length) return occupied.every((row) => row.every(Boolean));
-      const id = ids[index];
+      if (index >= placementIds.length) return occupied.every((row) => row.every(Boolean));
+      const id = placementIds[index];
       const dimension = dimensions[sizes[id]] || dimensions.small;
       for (let row = 0; row <= rows - dimension.height; row += 1) {
         for (let column = 0; column <= columns - dimension.width; column += 1) {
@@ -719,6 +728,25 @@
       { column: 0, row: 2, width: 4, height: 2 },
       { column: 4, row: 2, width: 4, height: 2 },
       { column: 8, row: 2, width: 4, height: 2 },
+    ],
+    7: [
+      { column: 0, row: 0, width: 4, height: 2 },
+      { column: 4, row: 0, width: 4, height: 2 },
+      { column: 8, row: 0, width: 4, height: 2 },
+      { column: 0, row: 2, width: 3, height: 2 },
+      { column: 3, row: 2, width: 3, height: 2 },
+      { column: 6, row: 2, width: 3, height: 2 },
+      { column: 9, row: 2, width: 3, height: 2 },
+    ],
+    8: [
+      { column: 0, row: 0, width: 3, height: 2 },
+      { column: 3, row: 0, width: 3, height: 2 },
+      { column: 6, row: 0, width: 3, height: 2 },
+      { column: 9, row: 0, width: 3, height: 2 },
+      { column: 0, row: 2, width: 3, height: 2 },
+      { column: 3, row: 2, width: 3, height: 2 },
+      { column: 6, row: 2, width: 3, height: 2 },
+      { column: 9, row: 2, width: 3, height: 2 },
     ],
   };
 
@@ -793,10 +821,15 @@
     const visibleOrder = ids.filter((id) => !hidden.has(id));
     if (!visibleOrder.length) return null;
 
-    let placements;
-    if (visibleOrder.length === 7) {
+    let placements = null;
+    const preferredArea = { mini: 2, small: 4, medium: 8, large: 16 };
+    const fillsGridByPreference = visibleOrder.reduce((total, id) => (
+      total + (preferredArea[sizes[id]] || 0)
+    ), 0) === columns * rows;
+    if (visibleOrder.length >= 7 && fillsGridByPreference) {
       placements = packHomeWidgetLayout(visibleOrder, sizes, columns, rows);
-    } else {
+    }
+    if (!placements) {
       const template = HOME_GAPLESS_TEMPLATES[visibleOrder.length];
       if (!template) return null;
       let slotOrder = [...visibleOrder];

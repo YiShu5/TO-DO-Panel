@@ -57,11 +57,20 @@ test('settings exposes exactly one switch for every homepage widget', () => {
   const switches = [...html.matchAll(/data-settings-home-module="([^"]+)"/g)]
     .map((match) => match[1]);
   assert.deepEqual(switches, [
-    'music', 'pomodoro', 'recorder', 'windows', 'mirror', 'note', 'commands',
+    'music', 'pomodoro', 'recorder', 'windows', 'mirror', 'note', 'commands', 'usage',
   ]);
   assert.match(workspaceJs, /isRecordingActive/);
   assert.match(workspaceJs, /recording_active/);
   assert.match(workspaceJs, /at_least_one_required/);
+});
+
+test('Codex usage widget exposes live quota, reset time, and a manual refresh without identity fields', () => {
+  assert.match(html, /data-home-module="usage"/);
+  assert.match(html, /id="usage-window-list"/);
+  assert.match(html, /id="usage-refresh"/);
+  assert.match(appJs, /getUsageSnapshot/);
+  assert.match(appJs, /formatUsageReset/);
+  assert.doesNotMatch(appJs, /accountEmail/);
 });
 
 test('hidden visual widgets stop presentation-only background work', () => {

@@ -434,6 +434,62 @@ function hoverSpacePollingPolicy({ shortcut, visible, mode } = {}) {
   };
 }
 
+function normalizeCodexBarSnapshot(value) {
+  if (!value || typeof value !== 'object' || Array.isArray(value) || value.schemaVersion !== 1) {
+    return { ok: false, error: 'invalid_response' };
+  }
+  const provider = Array.isArray(value.providers)
+    ? value.providers.find((item) => item && item.id === 'codex' && item.enabled !== false)
+    : null;
+  if (!provider || provider.error) return { ok: false, error: 'provider_unavailable' };
+
+  const clampPercent = (input) => {
+    const number = Number(input);
+    return Number.isFinite(number) ? Math.max(0, Math.min(100, Math.round(number))) : null;
+  };
+  const safeText = (input, maxLength = 80) => (
+    typeof input === 'string' ? input.replace(/\s+/g, ' ').trim().slice(0, maxLength) : ''
+  );
+  const safeDate = (input) => {
+    if (typeof input !== 'string') return null;
+    const date = new Date(input);
+    return Number.isFinite(date.getTime()) ? date.toISOString() : null;
+  };
+  const windows = (Array.isArray(provider.windows) ? provider.windows : [])
+    .slice(0, 8)
+    .map((item) => {
+      if (!item || typeof item !== 'object') return null;
+      let usedPercent = clampPercent(item.usedPercent);
+      let remainingPercent = clampPercent(item.remainingPercent);
+      if (usedPercent === null && remainingPercent !== null) usedPercent = 100 - remainingPercent;
+      if (remainingPercent === null && usedPercent !== null) remainingPercent = 100 - usedPercent;
+      if (usedPercent === null || remainingPercent === null) return null;
+      return {
+        kind: safeText(item.kind, 48),
+        label: safeText(item.label, 64),
+        usedPercent,
+        remainingPercent,
+        resetAt: safeDate(item.resetAt),
+      };
+    })
+    .filter(Boolean);
+  if (!windows.length) return { ok: false, error: 'provider_unavailable' };
+
+  return {
+    ok: true,
+    generatedAt: safeDate(value.generatedAt) || new Date().toISOString(),
+    staleAfterSeconds: Math.max(30, Math.min(900, Math.round(Number(value.staleAfterSeconds) || 180))),
+    provider: {
+      id: 'codex',
+      name: safeText(provider.name, 32) || 'Codex',
+      source: safeText(provider.source, 24),
+      plan: safeText(provider.identity && provider.identity.plan, 48),
+      updatedAt: safeDate(provider.updatedAt),
+      windows,
+    },
+  };
+}
+
 const CONFIGURABLE_FEATURES = new Set(['todo', 'notes', 'links', 'recordings', 'credentials', 'clip']);
 
 function updateFeaturePreference(features, featureId, enabled) {
@@ -542,6 +598,7 @@ module.exports = {
   screenRecordingProbePolicy,
   taskNotificationWindowPolicy,
   reduceClipboardObservation,
+  normalizeCodexBarSnapshot,
   createWorkspacePersistenceGate,
   hoverSpacePollingPolicy,
   updateFeaturePreference,

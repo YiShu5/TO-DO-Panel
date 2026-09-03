@@ -267,7 +267,7 @@ async function main() {
       api: true,
       mirror: true,
       features: 6,
-      homeModules: 7,
+      homeModules: 8,
       shortcut: true,
       workspace: true,
       autoLaunch: true,
@@ -490,7 +490,7 @@ async function main() {
           assert.equal(overlaps, false, '首页组件矩形不得重叠');
         }
       }
-      if (visibleCount < 7) {
+      if (visibleCount < 8) {
         assert.ok(measurement.sizeControls.every((control) => control.hidden && control.disabled && control.tabIndex === -1));
       } else {
         assert.ok(measurement.sizeControls.every((control) => !control.hidden && !control.disabled && control.tabIndex === 0));
@@ -501,16 +501,16 @@ async function main() {
       window.setSize(width, height);
       const matrix = await window.webContents.executeJavaScript(`
         (async () => {
-          const ids = ['music', 'pomodoro', 'recorder', 'windows', 'mirror', 'note', 'commands'];
+          const ids = ['music', 'pomodoro', 'recorder', 'windows', 'mirror', 'note', 'commands', 'usage'];
           ids.forEach((id) => window.NotchHome.setModuleVisible(id, true));
           const results = [];
-          for (let count = 7; count >= 1; count -= 1) {
+          for (let count = 8; count >= 1; count -= 1) {
             document.getElementById('tab-button-home').click();
             await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
             results.push(window.__measureHomepage());
             if (count > 1) {
               document.getElementById('tab-button-settings').click();
-              const input = document.querySelector('[data-settings-home-module="' + ids[7 - count] + '"]');
+              const input = document.querySelector('[data-settings-home-module="' + ids[8 - count] + '"]');
               input.checked = false;
               input.dispatchEvent(new Event('change', { bubbles: true }));
               await new Promise((resolve) => setTimeout(resolve, 20));
@@ -519,7 +519,7 @@ async function main() {
           return results;
         })()
       `);
-      matrix.forEach((measurement, index) => assertHomepageMeasurement(measurement, 7 - index));
+      matrix.forEach((measurement, index) => assertHomepageMeasurement(measurement, 8 - index));
 
       const finalWidgetGuard = await window.webContents.executeJavaScript(`
         (async () => {
@@ -538,13 +538,13 @@ async function main() {
       `);
       assert.equal(finalWidgetGuard.checked, true);
       assert.equal(finalWidgetGuard.visibleCount, 1);
-      assert.equal(finalWidgetGuard.storedCount, 6);
+      assert.equal(finalWidgetGuard.storedCount, 7);
       assert.match(finalWidgetGuard.message, /至少保留一个/);
     }
 
     const transactionAudit = await window.webContents.executeJavaScript(`
       (() => {
-        const ids = ['music', 'pomodoro', 'recorder', 'windows', 'mirror', 'note', 'commands'];
+        const ids = ['music', 'pomodoro', 'recorder', 'windows', 'mirror', 'note', 'commands', 'usage'];
         ids.forEach((id) => window.NotchHome.setModuleVisible(id, true));
         const first = window.NotchHome.setModuleVisible('mirror', false);
         const second = window.NotchHome.setModuleVisible('note', false);
@@ -615,7 +615,7 @@ async function main() {
 
     const persistenceAndRecorderAudit = await window.webContents.executeJavaScript(`
       (() => {
-        const ids = ['music', 'pomodoro', 'recorder', 'windows', 'mirror', 'note', 'commands'];
+        const ids = ['music', 'pomodoro', 'recorder', 'windows', 'mirror', 'note', 'commands', 'usage'];
         ids.forEach((id) => window.NotchHome.setModuleVisible(id, true));
         const originalSetItem = Storage.prototype.setItem;
         const storedBefore = localStorage.getItem('notch-home-hidden-modules-v1');
@@ -627,7 +627,7 @@ async function main() {
         const degradedState = window.NotchHome.getVisibility();
         const degradedStatus = document.getElementById('settings-home-module-status').textContent;
         const degradedStorageStable = storedBefore === localStorage.getItem('notch-home-hidden-modules-v1');
-        ['music', 'pomodoro', 'recorder', 'windows', 'note'].forEach((id) => {
+        ['music', 'pomodoro', 'recorder', 'windows', 'note', 'usage'].forEach((id) => {
           window.NotchHome.setModuleVisible(id, false);
         });
         const rejectedWhileDirty = window.NotchHome.setModuleVisible('commands', false);
@@ -699,7 +699,7 @@ async function main() {
     });
     const lifecycleAudit = await window.webContents.executeJavaScript(`
       (async () => {
-        const ids = ['music', 'pomodoro', 'recorder', 'windows', 'mirror', 'note', 'commands'];
+        const ids = ['music', 'pomodoro', 'recorder', 'windows', 'mirror', 'note', 'commands', 'usage'];
         ids.forEach((id) => window.NotchHome.setModuleVisible(id, true));
         document.getElementById('tab-button-home').click();
         document.dispatchEvent(new CustomEvent('notch:modechange', { detail: { expanded: true } }));
@@ -804,7 +804,7 @@ async function main() {
 
     const autoLayoutMotionAudit = await window.webContents.executeJavaScript(`
       (async () => {
-        const ids = ['music', 'pomodoro', 'recorder', 'windows', 'mirror', 'note', 'commands'];
+        const ids = ['music', 'pomodoro', 'recorder', 'windows', 'mirror', 'note', 'commands', 'usage'];
         ids.forEach((id) => window.NotchHome.setModuleVisible(id, true));
         document.getElementById('tab-button-home').click();
         await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));

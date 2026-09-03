@@ -52,7 +52,7 @@ const {
   prependClipboardHistory,
 } = domain;
 
-const HOME_MODULES = ['music', 'pomodoro', 'recorder', 'windows', 'mirror', 'note', 'commands'];
+const HOME_MODULES = ['music', 'pomodoro', 'recorder', 'windows', 'mirror', 'note', 'commands', 'usage'];
 
 function assertExactHomeCover(layout, expectedIds) {
   assert.ok(layout);
@@ -665,10 +665,10 @@ test('hidden homepage modules are deduplicated and normalized to module order', 
 });
 
 test('homepage visibility refuses to hide the final visible module', () => {
-  const sixHidden = HOME_MODULES.slice(0, 6);
+  const allButCommands = HOME_MODULES.filter((id) => id !== 'commands');
   assert.deepEqual(
-    updateHomeModuleVisibility(sixHidden, HOME_MODULES, 'commands', false),
-    { ok: false, error: 'at_least_one_required', hiddenIds: sixHidden }
+    updateHomeModuleVisibility(allButCommands, HOME_MODULES, 'commands', false),
+    { ok: false, error: 'at_least_one_required', hiddenIds: allButCommands }
   );
   assert.deepEqual(
     updateHomeModuleVisibility(['mirror'], HOME_MODULES, 'mirror', true),
@@ -681,10 +681,10 @@ test('homepage visibility refuses to hide the final visible module', () => {
 });
 
 test('every non-empty homepage widget subset exactly covers the bento grid', () => {
-  const order = ['music', 'pomodoro', 'windows', 'recorder', 'mirror', 'note', 'commands'];
+  const order = ['music', 'usage', 'pomodoro', 'windows', 'recorder', 'mirror', 'note', 'commands'];
   const sizes = {
-    music: 'medium', pomodoro: 'mini', windows: 'large', recorder: 'small',
-    mirror: 'medium', note: 'medium', commands: 'mini',
+    music: 'medium', usage: 'medium', pomodoro: 'mini', windows: 'medium',
+    recorder: 'small', mirror: 'medium', note: 'medium', commands: 'mini',
   };
   for (let visibleMask = 1; visibleMask < 2 ** order.length; visibleMask += 1) {
     const hiddenIds = order.filter((id, index) => (visibleMask & (1 << index)) === 0);
@@ -697,12 +697,12 @@ test('every non-empty homepage widget subset exactly covers the bento grid', () 
 });
 
 test('five-widget layout chooses the largest preference and breaks ties by saved order', () => {
-  const order = ['music', 'pomodoro', 'windows', 'recorder', 'mirror', 'note', 'commands'];
+  const order = ['music', 'usage', 'pomodoro', 'windows', 'recorder', 'mirror', 'note', 'commands'];
   const sizes = {
-    music: 'medium', pomodoro: 'mini', windows: 'large', recorder: 'small',
+    music: 'medium', usage: 'medium', pomodoro: 'mini', windows: 'large', recorder: 'small',
     mirror: 'large', note: 'medium', commands: 'mini',
   };
-  const layout = resolveHomeWidgetLayout(order, sizes, ['pomodoro', 'commands'], 12, 4);
+  const layout = resolveHomeWidgetLayout(order, sizes, ['usage', 'pomodoro', 'commands'], 12, 4);
   assert.deepEqual(layout.placements.windows, { column: 0, row: 0, width: 4, height: 4 });
   assert.equal(layout.variants.windows, 'tall');
 });

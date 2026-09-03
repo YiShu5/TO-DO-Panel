@@ -136,6 +136,29 @@
                 </button>
               </section>
 
+              <!-- Codex 额度：通过本机 CodexBar CLI 读取，不接触浏览器 Cookie -->
+              <section class="tile home-usage" id="home-usage" data-home-module="usage" data-widget-size="medium" aria-label="Codex 用量">
+                <div class="usage-head">
+                  <div class="usage-brand">
+                    <span class="usage-mark" aria-hidden="true">CX</span>
+                    <div><span class="tile-label">Codex 用量</span><small id="usage-plan">读取中…</small></div>
+                  </div>
+                  <button class="usage-refresh" id="usage-refresh" type="button" aria-label="刷新 Codex 用量" title="刷新用量">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 11a8 8 0 1 0-2.35 5.65"/><path d="M20 5v6h-6"/></svg>
+                  </button>
+                </div>
+                <div class="usage-body" id="usage-body">
+                  <div class="usage-overview">
+                    <strong id="usage-remaining">--%</strong>
+                    <span id="usage-caption">剩余额度</span>
+                  </div>
+                  <div class="usage-window-list" id="usage-window-list" aria-live="polite">
+                    <p class="usage-message" id="usage-message">展开后读取实时用量…</p>
+                  </div>
+                </div>
+                <div class="usage-foot"><span>CodexBar · 本机读取</span><time id="usage-updated">等待刷新</time></div>
+              </section>
+
               <!-- 快速录音与实时转写 -->
               <section class="tile home-recorder" id="home-recorder" data-home-module="recorder" data-widget-size="medium">
                 <div class="recorder-head">
@@ -447,6 +470,7 @@
                     <label><span><b>镜子</b><small>相机与封面</small></span><input type="checkbox" data-settings-home-module="mirror" aria-label="显示镜子" /><i aria-hidden="true"></i></label>
                     <label><span><b>随笔记</b><small>首页快速记录</small></span><input type="checkbox" data-settings-home-module="note" aria-label="显示随笔记" /><i aria-hidden="true"></i></label>
                     <label><span><b>常用指令</b><small>提示词快捷入口</small></span><input type="checkbox" data-settings-home-module="commands" aria-label="显示常用指令" /><i aria-hidden="true"></i></label>
+                    <label><span><b>Codex 用量</b><small>额度与重置时间</small></span><input type="checkbox" data-settings-home-module="usage" aria-label="显示 Codex 用量" /><i aria-hidden="true"></i></label>
                   </div>
                 </section>
               </div>

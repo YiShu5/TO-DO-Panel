@@ -28,7 +28,48 @@ const {
   createWorkspacePersistenceGate,
   hoverSpacePollingPolicy,
   reduceClipboardObservation,
+  normalizeCodexBarSnapshot,
 } = require('../main-services');
+
+test('CodexBar dashboard data is minimized to usage windows without account identity', () => {
+  const normalized = normalizeCodexBarSnapshot({
+    schemaVersion: 1,
+    generatedAt: '2026-09-03T03:48:17Z',
+    staleAfterSeconds: 180,
+    providers: [{
+      id: 'codex',
+      enabled: true,
+      name: 'Codex',
+      source: 'oauth',
+      identity: { accountEmail: 'private@example.com', plan: 'Pro 20x' },
+      updatedAt: '2026-09-03T03:48:14Z',
+      windows: [{
+        kind: 'weekly', label: 'Weekly', usedPercent: 16,
+        remainingPercent: 84, resetAt: '2026-09-07T02:36:41Z',
+      }],
+      cost: { todayUSD: 21.77 },
+      credits: { remaining: 0 },
+    }],
+  });
+  assert.equal(normalized.ok, true);
+  assert.equal(normalized.provider.plan, 'Pro 20x');
+  assert.equal(normalized.provider.windows[0].remainingPercent, 84);
+  assert.equal('identity' in normalized.provider, false);
+  assert.equal('cost' in normalized.provider, false);
+  assert.equal('credits' in normalized.provider, false);
+  assert.equal(JSON.stringify(normalized).includes('private@example.com'), false);
+});
+
+test('CodexBar dashboard rejects invalid, errored, or empty provider data', () => {
+  assert.deepEqual(normalizeCodexBarSnapshot(null), { ok: false, error: 'invalid_response' });
+  assert.deepEqual(normalizeCodexBarSnapshot({ schemaVersion: 2, providers: [] }), {
+    ok: false, error: 'invalid_response',
+  });
+  assert.deepEqual(normalizeCodexBarSnapshot({
+    schemaVersion: 1,
+    providers: [{ id: 'codex', enabled: true, error: 'unauthorized', windows: [] }],
+  }), { ok: false, error: 'provider_unavailable' });
+});
 
 test('Netease Music history rows expose synchronized song metadata', () => {
   const metadata = parseNeteaseHistoryTrack(JSON.stringify({

@@ -5550,3 +5550,108 @@ body {
 .settings-home-module-grid input:focus-visible + i { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
 .settings-home-module-grid input:disabled + i { opacity: .55; }
 #settings-home-module-status[data-state='warning'] { color: #ffb16d; }
+
+/* Codex 用量：所有数据均由主进程调用本机 CodexBar 一次性读取。 */
+.home-usage {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+  min-height: 0;
+  padding: 13px 14px 11px;
+  overflow: hidden;
+  background:
+    radial-gradient(circle at 8% 4%, rgba(73,163,176,.2), transparent 46%),
+    linear-gradient(145deg, rgba(22,30,34,.98), rgba(10,12,15,.98));
+}
+.home-usage::before {
+  content: '';
+  position: absolute;
+  inset: auto -36px -58px auto;
+  width: 150px;
+  height: 150px;
+  border-radius: 50%;
+  background: rgba(73,163,176,.07);
+  filter: blur(3px);
+  pointer-events: none;
+}
+.usage-head,
+.usage-brand,
+.usage-window > div,
+.usage-foot { display: flex; align-items: center; }
+.usage-head { position: relative; z-index: 2; justify-content: space-between; gap: 8px; padding-right: 27px; }
+.usage-brand { min-width: 0; gap: 8px; }
+.usage-brand > div { min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.usage-brand small { max-width: 112px; overflow: hidden; color: rgba(214,235,238,.5); font-size: 7px; white-space: nowrap; text-overflow: ellipsis; }
+.usage-mark {
+  flex: 0 0 27px;
+  width: 27px;
+  height: 27px;
+  display: grid;
+  place-items: center;
+  border-radius: 9px;
+  color: #e8fcff;
+  background: linear-gradient(145deg, rgba(87,190,201,.9), rgba(43,105,119,.9));
+  box-shadow: 0 7px 20px rgba(38,139,154,.2), inset 0 0 0 1px rgba(255,255,255,.16);
+  font: 700 8px/1 var(--font-mono);
+  letter-spacing: -.2px;
+}
+.usage-refresh {
+  flex: 0 0 25px;
+  width: 25px;
+  height: 25px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  border-radius: 9px;
+  color: rgba(225,244,246,.62);
+  background: rgba(255,255,255,.06);
+  cursor: pointer;
+  transition: color 140ms var(--ease), background 140ms var(--ease);
+}
+.usage-refresh:hover { color: #fff; background: rgba(255,255,255,.11); }
+.usage-refresh svg { width: 13px; height: 13px; }
+.usage-refresh.is-refreshing svg { animation: native-loader-spin .75s linear infinite; }
+.usage-body { position: relative; z-index: 1; min-width: 0; min-height: 0; flex: 1; display: grid; grid-template-columns: 74px minmax(0, 1fr); gap: 10px; align-items: stretch; }
+.usage-overview { display: flex; flex-direction: column; align-items: center; justify-content: center; min-width: 0; border-radius: 14px; background: rgba(255,255,255,.045); box-shadow: inset 0 0 0 1px rgba(255,255,255,.045); }
+.usage-overview strong { color: #eafcfe; font: 620 23px/1 var(--font-mono); letter-spacing: -1.3px; }
+.usage-overview span { max-width: 66px; margin-top: 5px; overflow: hidden; color: rgba(215,232,235,.48); font-size: 7px; white-space: nowrap; text-overflow: ellipsis; }
+.home-usage[data-state='warning'] .usage-overview strong { color: #ffd79b; }
+.home-usage[data-state='critical'] .usage-overview strong,
+.home-usage[data-state='error'] .usage-overview strong { color: #ff9f9b; }
+.usage-window-list { min-width: 0; min-height: 0; display: flex; flex-direction: column; justify-content: center; gap: 6px; overflow: hidden; }
+.usage-window { min-width: 0; display: grid; grid-template-columns: minmax(0, 1fr); gap: 2px; }
+.usage-window > div { justify-content: space-between; gap: 7px; min-width: 0; }
+.usage-window span,
+.usage-window strong { overflow: hidden; font-size: 8px; line-height: 1.2; white-space: nowrap; text-overflow: ellipsis; }
+.usage-window span { color: rgba(228,239,241,.7); }
+.usage-window strong { flex: 0 0 auto; color: rgba(235,250,251,.9); font-weight: 590; }
+.usage-window > i { height: 3px; overflow: hidden; border-radius: 999px; background: rgba(255,255,255,.075); }
+.usage-window > i > b { display: block; width: var(--usage-remaining); height: 100%; border-radius: inherit; background: linear-gradient(90deg, #4598a5, #69cbd2); }
+.usage-window[data-tone='warning'] > i > b { background: linear-gradient(90deg, #c78b48, #f0bd74); }
+.usage-window[data-tone='critical'] > i > b { background: linear-gradient(90deg, #c55357, #f0837f); }
+.usage-window time { color: rgba(208,225,227,.46); font: 500 7px/1.2 var(--font-ui); }
+.usage-message { align-self: center; margin: 0; color: rgba(222,237,239,.48); font-size: 8px; line-height: 1.45; text-align: center; }
+.usage-foot { position: relative; z-index: 1; justify-content: space-between; gap: 8px; color: rgba(202,222,224,.38); font-size: 7px; }
+.usage-foot time { white-space: nowrap; }
+
+.home-bento > .home-usage[data-layout-variant='mini'] { padding: 8px; gap: 3px; }
+.home-bento > .home-usage[data-layout-variant='mini'] .usage-head { padding: 0; justify-content: center; }
+.home-bento > .home-usage[data-layout-variant='mini'] .usage-brand > div,
+.home-bento > .home-usage[data-layout-variant='mini'] .usage-refresh,
+.home-bento > .home-usage[data-layout-variant='mini'] .usage-window-list,
+.home-bento > .home-usage[data-layout-variant='mini'] .usage-foot { display: none; }
+.home-bento > .home-usage[data-layout-variant='mini'] .usage-body { display: block; }
+.home-bento > .home-usage[data-layout-variant='mini'] .usage-overview { height: 100%; background: transparent; box-shadow: none; }
+.home-bento > .home-usage[data-layout-variant='mini'] .usage-overview strong { font-size: 14px; }
+.home-bento > .home-usage[data-layout-variant='mini'] .usage-overview span { margin-top: 2px; font-size: 6px; }
+.home-bento > .home-usage[data-layout-variant='compact'] .usage-body { display: flex; flex-direction: column; gap: 6px; }
+.home-bento > .home-usage[data-layout-variant='compact'] .usage-overview { flex: 1; min-height: 54px; }
+.home-bento > .home-usage[data-layout-variant='compact'] .usage-window:nth-child(n+2),
+.home-bento > .home-usage[data-layout-variant='compact'] .usage-foot { display: none; }
+.home-bento > .home-usage[data-layout-variant='tall'] .usage-body,
+.home-bento > .home-usage[data-layout-variant='full'] .usage-body { display: flex; flex-direction: column; }
+.home-bento > .home-usage[data-layout-variant='tall'] .usage-overview,
+.home-bento > .home-usage[data-layout-variant='full'] .usage-overview { flex: 0 0 86px; }
