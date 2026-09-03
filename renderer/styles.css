@@ -5248,7 +5248,6 @@ body {
 .home-bento > [data-home-module] button,
 .home-bento > [data-home-module] input,
 .home-bento > [data-home-module] textarea { flex-shrink: 0; }
-.home-bento[data-layout-mode='automatic'] .widget-size-control,
 .home-bento[data-layout-mode='safe'] .widget-size-control { display: none !important; }
 
 .home-bento > [data-layout-variant='wide'],

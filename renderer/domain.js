@@ -826,7 +826,10 @@
     const fillsGridByPreference = visibleOrder.reduce((total, id) => (
       total + (preferredArea[sizes[id]] || 0)
     ), 0) === columns * rows;
-    if (visibleOrder.length >= 7 && fillsGridByPreference) {
+    // Three or more visible widgets can fill the 12×4 grid with the standard
+    // size units. Prefer the user's sizes before falling back to a gapless
+    // count-based template.
+    if (visibleOrder.length >= 3 && fillsGridByPreference) {
       placements = packHomeWidgetLayout(visibleOrder, sizes, columns, rows);
     }
     if (!placements) {

@@ -471,6 +471,8 @@ async function main() {
           surface: { left: surface.left, top: surface.top, right: surface.right, bottom: surface.bottom },
           tiles,
           sizeControls: [...document.querySelectorAll('#home-bento [data-widget-size-cycle]')].map((control) => ({
+            module: control.dataset.widgetSizeCycle,
+            tileHidden: control.closest('[data-home-module]').hidden,
             hidden: control.hidden,
             disabled: control.disabled,
             tabIndex: control.tabIndex,
@@ -526,10 +528,13 @@ async function main() {
           assert.equal(overlaps, false, '首页组件矩形不得重叠');
         }
       }
-      if (visibleCount < 8) {
-        assert.ok(measurement.sizeControls.every((control) => control.hidden && control.disabled && control.tabIndex === -1));
+      const hiddenControls = measurement.sizeControls.filter((control) => control.tileHidden);
+      const visibleControls = measurement.sizeControls.filter((control) => !control.tileHidden);
+      assert.ok(hiddenControls.every((control) => control.hidden && control.disabled && control.tabIndex === -1));
+      if (visibleCount >= 3) {
+        assert.ok(visibleControls.every((control) => !control.hidden && !control.disabled && control.tabIndex === 0));
       } else {
-        assert.ok(measurement.sizeControls.every((control) => !control.hidden && !control.disabled && control.tabIndex === 0));
+        assert.ok(visibleControls.every((control) => control.hidden && control.disabled && control.tabIndex === -1));
       }
     }
 
@@ -674,6 +679,8 @@ async function main() {
 
         ids.forEach((id) => window.NotchHome.setModuleVisible(id, true));
         const recorderHidden = window.NotchHome.setModuleVisible('recorder', false);
+        const automaticResizeAvailable = !document.querySelector('[data-widget-size-cycle="music"]').hidden
+          && !document.querySelector('[data-widget-size-cycle="music"]').disabled;
         const originalWorkspace = window.NotchWorkspace;
         window.NotchWorkspace = { ...originalWorkspace, isRecordingActive: () => true };
         document.dispatchEvent(new CustomEvent('notch:recording-state-changed', { detail: { active: true } }));
@@ -704,6 +711,7 @@ async function main() {
           recoveredPersisted: recoveredState.persisted,
           recoveredStored,
           recorderHidden,
+          automaticResizeAvailable,
           hiddenSwitchEnabled,
           recorderRestored,
           visibleSwitchLocked,
@@ -723,6 +731,7 @@ async function main() {
     assert.equal(persistenceAndRecorderAudit.recovered.persisted, true);
     assert.equal(persistenceAndRecorderAudit.recoveredPersisted, true);
     assert.ok(Array.isArray(persistenceAndRecorderAudit.recoveredStored));
+    assert.equal(persistenceAndRecorderAudit.automaticResizeAvailable, true);
     assert.equal(persistenceAndRecorderAudit.recorderHidden.ok, true);
     assert.equal(persistenceAndRecorderAudit.hiddenSwitchEnabled, true);
     assert.equal(persistenceAndRecorderAudit.recorderRestored.ok, true);

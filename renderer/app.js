@@ -2719,9 +2719,12 @@ function applyHomeLayout(layout, { reason = 'initial' } = {}) {
       sizeButton.dataset.currentSize = size;
       sizeButton.setAttribute('aria-label', `${HOME_SIZE_LABELS[size]}组件，点击切换尺寸`);
       sizeButton.title = `组件尺寸：${HOME_SIZE_LABELS[size]}`;
-      sizeButton.hidden = automaticLayout || homeLayoutReadOnly;
-      sizeButton.disabled = automaticLayout || homeLayoutReadOnly;
-      sizeButton.tabIndex = automaticLayout || homeLayoutReadOnly ? -1 : 0;
+      const resizeAvailable = Boolean(placement)
+        && !homeLayoutReadOnly
+        && (!automaticLayout || layout.visibleOrder.length >= 3);
+      sizeButton.hidden = !resizeAvailable;
+      sizeButton.disabled = !resizeAvailable;
+      sizeButton.tabIndex = resizeAvailable ? 0 : -1;
     }
   });
   animateCommittedHomeLayout(reason, beforeState);
@@ -3065,20 +3068,49 @@ if (homeBento) {
     if (!sizeButton) return;
     event.preventDefault();
     event.stopPropagation();
-    if (hiddenHomeModules.length > 0 || homeLayoutReadOnly) return;
+    if (homeLayoutReadOnly) return;
     const moduleId = sizeButton.dataset.widgetSizeCycle;
     const sequence = ['mini', 'small', 'medium', 'large'];
     const current = homeSizes[moduleId] || HOME_SIZE_DEFAULTS[moduleId];
     const requested = sequence[(sequence.indexOf(current) + 1) % sequence.length];
-    homeSizes = window.NotchDomain.normalizeHomeWidgetSizes({
-      ...homeSizes,
-      [moduleId]: requested,
-    }, HOME_SIZE_DEFAULTS, moduleId, 48);
-    const layout = resolveValidatedHomeLayout(hiddenHomeModules);
-    if (layout) {
+    let candidateSizes;
+    if (hiddenHomeModules.length > 0) {
+      const visibleIds = HOME_MODULE_REGISTRY.filter((id) => !hiddenHomeModules.includes(id));
+      const visibleSizes = Object.fromEntries(visibleIds.map((id) => (
+        [id, homeSizes[id] || HOME_SIZE_DEFAULTS[id]]
+      )));
+      const fittedVisibleSizes = window.NotchDomain.normalizeHomeWidgetSizes({
+        ...visibleSizes,
+        [moduleId]: requested,
+      }, visibleSizes, moduleId, 48);
+      candidateSizes = { ...homeSizes, ...fittedVisibleSizes };
+    } else {
+      candidateSizes = window.NotchDomain.normalizeHomeWidgetSizes({
+        ...homeSizes,
+        [moduleId]: requested,
+      }, HOME_SIZE_DEFAULTS, moduleId, 48);
+    }
+    const layout = resolveValidatedHomeLayout(hiddenHomeModules, homeOrder, candidateSizes);
+    const expectedDimensions = {
+      mini: { width: 2, height: 1 },
+      small: { width: 2, height: 2 },
+      medium: { width: 4, height: 2 },
+      large: { width: 4, height: 4 },
+    };
+    const usesRequestedSizes = hiddenHomeModules.length === 0 || layout?.visibleOrder.every((id) => {
+      const placement = layout.placements[id];
+      const expected = expectedDimensions[candidateSizes[id]];
+      return placement && expected
+        && placement.width === expected.width
+        && placement.height === expected.height;
+    });
+    if (layout && usesRequestedSizes) {
+      homeSizes = candidateSizes;
       applyHomeLayout(layout, { reason: 'size' });
       saveHomeLayout();
       showStatusToast(`${HOME_SIZE_LABELS[homeSizes[moduleId]]}组件 · 其他模块已自适应`);
+    } else {
+      showStatusToast('当前组合无法使用这个尺寸，布局保持不变');
     }
   });
 

@@ -707,6 +707,26 @@ test('five-widget layout chooses the largest preference and breaks ties by saved
   assert.equal(layout.variants.windows, 'tall');
 });
 
+test('seven visible widgets can honor a resized card while still filling the homepage', () => {
+  const order = ['music', 'usage', 'windows', 'recorder', 'mirror', 'note', 'commands', 'pomodoro'];
+  const hiddenIds = ['recorder'];
+  const current = {
+    music: 'small', usage: 'medium', windows: 'mini', recorder: 'small',
+    mirror: 'small', note: 'large', commands: 'medium', pomodoro: 'mini',
+  };
+  const visibleIds = order.filter((id) => !hiddenIds.includes(id));
+  const visibleSizes = Object.fromEntries(visibleIds.map((id) => [id, current[id]]));
+  const fitted = normalizeHomeWidgetSizes(
+    { ...visibleSizes, music: 'medium' },
+    visibleSizes,
+    'music',
+    48
+  );
+  const layout = resolveHomeWidgetLayout(order, { ...current, ...fitted }, hiddenIds, 12, 4);
+  assertExactHomeCover(layout, visibleIds);
+  assert.deepEqual(layout.placements.music, { column: 4, row: 0, width: 4, height: 2 });
+});
+
 test('layout variants reflect actual rectangles instead of saved preferences', () => {
   assert.equal(layoutVariantForPlacement({ width: 2, height: 1 }), 'mini');
   assert.equal(layoutVariantForPlacement({ width: 2, height: 2 }), 'compact');
