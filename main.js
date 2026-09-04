@@ -261,6 +261,7 @@ let mediaPermissionRequests = 0;
 let transientSystemInteractionRequests = 0;
 let cameraBlurDeferred = false;
 let neteaseMusicPlaying = false;
+let textEntryActive = false;
 
 let notificationWindow = null;
 let notificationWindowReady = false;
@@ -391,6 +392,10 @@ function cancelCollapseWatchdog() {
 function applyMode(mode, display) {
   if (!mainWindow || mainWindow.isDestroyed()) return;
   cancelCollapseWatchdog();
+  if (mode === 'collapsed') {
+    textEntryActive = false;
+    mainWindow.setAlwaysOnTop(true, 'screen-saver');
+  }
   mainWindow.setBounds(getBoundsForMode(mode, display));
   mainWindow.setIgnoreMouseEvents(false);
   currentMode = mode;
@@ -1503,6 +1508,15 @@ ipcMain.handle('window:set-mode', async (event, mode) => {
 
 ipcMain.handle('window:begin-collapse', () => {
   beginNativeCollapse();
+});
+
+ipcMain.on('window:text-entry-active', (event, active) => {
+  if (!mainWindow || mainWindow.isDestroyed() || event.sender !== mainWindow.webContents) return;
+  textEntryActive = active === true;
+  // screen-saver 层级会压住 macOS 中文输入法的候选窗。只在文字输入期间
+  // 暂时取消置顶；面板仍是当前焦点窗口，结束输入或收起后立即恢复。
+  if (textEntryActive) mainWindow.setAlwaysOnTop(false);
+  else mainWindow.setAlwaysOnTop(true, 'screen-saver');
 });
 
 ipcMain.handle('settings:get', () => publicAppSettings());

@@ -10,6 +10,7 @@ function subscribe(channel, handler) {
 contextBridge.exposeInMainWorld('notchAPI', {
   setMode: (mode) => ipcRenderer.invoke('window:set-mode', mode),
   beginCollapse: () => ipcRenderer.invoke('window:begin-collapse'),
+  setTextEntryActive: (active) => ipcRenderer.send('window:text-entry-active', active === true),
   setTab: (tab) => ipcRenderer.invoke('window:set-tab', tab),
   ensureCamera: () => ipcRenderer.invoke('media:camera'),
   ensureMicrophone: () => ipcRenderer.invoke('media:microphone'),

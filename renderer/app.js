@@ -139,6 +139,22 @@ if (statusToastAction) {
 
 window.addEventListener('beforeunload', () => dismissStatusToast(true));
 
+function isTextEntryControl(target) {
+  if (!(target instanceof Element)) return false;
+  return Boolean(target.closest(
+    'textarea, [contenteditable]:not([contenteditable="false"]), input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="button"]):not([type="submit"])'
+  ));
+}
+
+function syncTextEntryWindowLevel() {
+  window.notchAPI?.setTextEntryActive?.(isTextEntryControl(document.activeElement));
+}
+
+document.addEventListener('focusin', syncTextEntryWindowLevel);
+document.addEventListener('focusout', () => queueMicrotask(syncTextEntryWindowLevel));
+document.addEventListener('compositionstart', () => window.notchAPI?.setTextEntryActive?.(true));
+document.addEventListener('compositionend', () => queueMicrotask(syncTextEntryWindowLevel));
+
 function loadData() {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);

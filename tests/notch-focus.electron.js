@@ -309,6 +309,64 @@ async function main() {
       restoredStored: 'dark',
     }, '外观开关必须即时切换，并将选择持久化');
 
+    const todoTextEntryAudit = await window.webContents.executeJavaScript(`
+      (async () => {
+        const originalApi = window.notchAPI;
+        const windowLevelEvents = [];
+        window.notchAPI = {
+          ...originalApi,
+          setTextEntryActive: (active) => windowLevelEvents.push(active),
+        };
+        document.getElementById('tab-button-todo').click();
+        const input = document.querySelector('.add-row input[data-priority="P0"]');
+        input.focus();
+        input.value = '输入可见性测试';
+        input.dispatchEvent(new CompositionEvent('compositionstart', { bubbles: true, data: '输入' }));
+        await new Promise((resolve) => queueMicrotask(resolve));
+        const dark = getComputedStyle(input);
+        const darkState = {
+          value: input.value,
+          color: dark.color,
+          textFill: dark.webkitTextFillColor,
+          caret: dark.caretColor,
+          background: dark.backgroundColor,
+        };
+        window.NotchTheme.set('light');
+        const light = getComputedStyle(input);
+        const lightState = {
+          color: light.color,
+          textFill: light.webkitTextFillColor,
+          caret: light.caretColor,
+          background: light.backgroundColor,
+        };
+        input.dispatchEvent(new CompositionEvent('compositionend', { bubbles: true, data: '输入' }));
+        await new Promise((resolve) => queueMicrotask(resolve));
+        input.blur();
+        await new Promise((resolve) => queueMicrotask(resolve));
+        window.NotchTheme.set('dark');
+        window.notchAPI = originalApi;
+        return { darkState, lightState, windowLevelEvents };
+      })()
+    `);
+    assert.equal(todoTextEntryAudit.darkState.value, '输入可见性测试');
+    assert.notEqual(todoTextEntryAudit.darkState.textFill, 'rgba(0, 0, 0, 0)');
+    assert.notEqual(todoTextEntryAudit.darkState.caret, 'rgba(0, 0, 0, 0)');
+    assert.notEqual(todoTextEntryAudit.lightState.textFill, 'rgba(0, 0, 0, 0)');
+    assert.notEqual(todoTextEntryAudit.lightState.caret, 'rgba(0, 0, 0, 0)');
+    assert.equal(todoTextEntryAudit.darkState.color, todoTextEntryAudit.darkState.textFill);
+    assert.equal(todoTextEntryAudit.lightState.color, todoTextEntryAudit.lightState.textFill);
+    assert.equal(todoTextEntryAudit.windowLevelEvents.length >= 2, true);
+    assert.equal(
+      todoTextEntryAudit.windowLevelEvents.slice(0, -1).every((active) => active === true),
+      true,
+      '文字输入和中文组合态期间应保持降低后的窗口层级'
+    );
+    assert.equal(
+      todoTextEntryAudit.windowLevelEvents.at(-1),
+      false,
+      '退出文字输入后应恢复置顶层级'
+    );
+
     const credentialSelectionAudit = await window.webContents.executeJavaScript(`
       (async () => {
         const originalApi = window.notchAPI;

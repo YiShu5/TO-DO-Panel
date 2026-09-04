@@ -1628,6 +1628,34 @@ body {
   font-size: 11px;
 }
 
+/* 中文输入法组合态也保持清晰可见，避免 Chromium 使用黑色默认选区吞掉文字。 */
+.quadrant input[type='text'] {
+  -webkit-text-fill-color: var(--text-1);
+  caret-color: #8fb9ff;
+}
+
+.quadrant input[type='text']::selection {
+  color: #fff;
+  background: rgba(78, 137, 232, .72);
+}
+
+.quadrant .add-row {
+  z-index: 2;
+  isolation: isolate;
+}
+
+.quadrant .add-row > input[type='text'] {
+  position: relative;
+  z-index: 1;
+  background: rgba(255,255,255,.075);
+}
+
+.quadrant .add-row > input[type='text']:focus {
+  background: rgba(255,255,255,.14);
+  border-color: rgba(143,185,255,.42);
+  box-shadow: inset 0 0 0 1px rgba(143,185,255,.18), 0 0 0 3px rgba(92,143,226,.1);
+}
+
 /* ============ 剪贴板 Tab ============ */
 #tab-clip {
   display: flex;
@@ -5798,6 +5826,21 @@ html[data-theme='light'] .usage-window strong { color: rgba(29,50,54,.9); }
 html[data-theme='light'] .usage-window > i { background: rgba(40,78,84,.1); }
 html[data-theme='light'] .usage-refresh { color: rgba(31,67,73,.68); background: rgba(255,255,255,.62); }
 html[data-theme='light'] .usage-refresh:hover { color: #204e55; background: #fff; }
+
+html[data-theme='light'] .quadrant input[type='text'] {
+  -webkit-text-fill-color: var(--text-1);
+  caret-color: #275fc0;
+}
+
+html[data-theme='light'] .quadrant .add-row > input[type='text'] {
+  background: rgba(35,44,60,.065);
+}
+
+html[data-theme='light'] .quadrant .add-row > input[type='text']:focus {
+  background: #fff;
+  border-color: rgba(45,91,171,.28);
+  box-shadow: inset 0 0 0 1px rgba(45,91,171,.08), 0 0 0 3px rgba(55,105,190,.1);
+}
 
 /* 图像型模块维持白字，避免浅色主题降低封面上的文字对比度。 */
 html[data-theme='light'] .home-music,
