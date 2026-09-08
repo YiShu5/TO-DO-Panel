@@ -223,9 +223,11 @@ test('renameGroup trims names but never creates an empty name', () => {
 test('createCommand and createRecording normalize user-authored metadata', () => {
   assert.deepEqual(createCommand('  npm test  ', 'c1', 100), {
     id: 'c1',
+    title: 'npm test',
     text: 'npm test',
     createdAt: 100,
   });
+  assert.equal(createCommand('  第一行\n第二行  ', 'c2', 100, '  代码审查  ').title, '代码审查');
   assert.equal(createCommand('   ', 'c2', 100), null);
   const recording = createRecording({
     id: 'r1',

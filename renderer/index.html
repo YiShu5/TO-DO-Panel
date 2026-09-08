@@ -241,7 +241,15 @@
                   <span class="tile-label">常用指令</span>
                   <button class="bulk-delete" id="command-bulk-delete" type="button" hidden>删除</button>
                 </div>
-                <input class="command-add" id="command-add" type="text" placeholder="输入指令，回车保存…" maxlength="500" autocomplete="off" spellcheck="false" />
+                <div class="command-add-form">
+                  <div class="command-add-head">
+                    <input class="command-title-add" id="command-title-add" type="text" placeholder="提示词题目（可选）" maxlength="80" autocomplete="off" />
+                    <button class="command-save" id="command-save" type="button" aria-label="保存提示词" title="保存提示词">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+                    </button>
+                  </div>
+                  <textarea class="command-add" id="command-add" placeholder="输入提示词内容，⌘/Ctrl + Enter 保存…" maxlength="4000" autocomplete="off" spellcheck="false"></textarea>
+                </div>
                 <div class="command-list" id="command-list"></div>
               </section>
 

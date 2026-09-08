@@ -55,11 +55,18 @@
   }
 
   // ============ 常用指令 ============
+  const commandTitleInput = document.getElementById('command-title-add');
   const commandInput = document.getElementById('command-add');
+  const commandSaveButton = document.getElementById('command-save');
   const commandList = document.getElementById('command-list');
   const commandBulkDelete = document.getElementById('command-bulk-delete');
   let commands = loadJson(COMMANDS_KEY, [])
-    .map((item) => Domain.createCommand(item && item.text, item && item.id, item && item.createdAt))
+    .map((item) => Domain.createCommand(
+      item && item.text,
+      item && item.id,
+      item && item.createdAt,
+      item && item.title
+    ))
     .filter(Boolean);
   let commandSelection = new Set();
   let commandSelectionAnchor = null;
@@ -90,69 +97,143 @@
       row.className = `command-item${commandSelection.has(command.id) ? ' multi-selected' : ''}`;
       row.dataset.id = command.id;
 
+      const copy = document.createElement('div');
+      copy.className = 'command-copy';
+      const titleButton = document.createElement('button');
+      titleButton.className = 'command-title';
+      titleButton.type = 'button';
+      titleButton.dataset.action = 'edit-command';
+      titleButton.title = '点击修改题目和提示词';
+      titleButton.textContent = command.title;
       const textButton = document.createElement('button');
       textButton.className = 'command-text';
       textButton.type = 'button';
       textButton.dataset.action = 'edit-command';
-      textButton.title = '点击修改';
+      textButton.title = '点击修改题目和提示词';
       textButton.textContent = command.text;
+      copy.append(titleButton, textButton);
 
       const actions = document.createElement('div');
       actions.className = 'command-actions';
-      const copy = document.createElement('button');
-      copy.className = 'icon-button';
-      copy.type = 'button';
-      copy.dataset.action = 'copy-command';
-      copy.setAttribute('aria-label', '复制指令');
-      copy.innerHTML = COPY_ICON;
+      const copyButton = document.createElement('button');
+      copyButton.className = 'icon-button';
+      copyButton.type = 'button';
+      copyButton.dataset.action = 'copy-command';
+      copyButton.setAttribute('aria-label', '复制提示词');
+      copyButton.title = '复制提示词';
+      copyButton.innerHTML = COPY_ICON;
       const remove = document.createElement('button');
       remove.className = 'icon-button danger';
       remove.type = 'button';
       remove.dataset.action = 'delete-command';
-      remove.setAttribute('aria-label', '删除指令');
+      remove.setAttribute('aria-label', '删除提示词');
+      remove.title = '删除提示词';
       remove.innerHTML = DELETE_ICON;
-      actions.append(copy, remove);
-      row.append(textButton, actions);
+      actions.append(copyButton, remove);
+      row.append(copy, actions);
       commandList.appendChild(row);
     });
   }
 
   function editCommand(row) {
     const command = commands.find((item) => item.id === row.dataset.id);
-    if (!command || row.querySelector('input')) return;
-    const button = row.querySelector('.command-text');
-    const input = document.createElement('input');
-    input.className = 'command-edit';
-    input.value = command.text;
-    button.replaceWith(input);
-    input.focus();
-    input.select();
+    if (!command || row.querySelector('.command-editor')) return;
+    const actions = row.querySelector('.command-actions');
+    const editor = document.createElement('div');
+    editor.className = 'command-editor';
+    const title = document.createElement('input');
+    title.className = 'command-edit-title';
+    title.type = 'text';
+    title.maxLength = 80;
+    title.value = command.title;
+    title.setAttribute('aria-label', '提示词题目');
+    const content = document.createElement('textarea');
+    content.className = 'command-edit-content';
+    content.maxLength = 4000;
+    content.value = command.text;
+    content.setAttribute('aria-label', '提示词内容');
+    const footer = document.createElement('div');
+    footer.className = 'command-editor-footer';
+    const hint = document.createElement('span');
+    hint.textContent = '⌘/Ctrl + Enter 保存';
+    const cancel = document.createElement('button');
+    cancel.className = 'command-editor-cancel';
+    cancel.type = 'button';
+    cancel.textContent = '取消';
+    const save = document.createElement('button');
+    save.className = 'command-editor-save';
+    save.type = 'button';
+    save.textContent = '保存';
+    footer.append(hint, cancel, save);
+    editor.append(title, content, footer);
+    row.replaceChildren(editor, actions);
+    title.focus();
+    title.select();
     let finished = false;
     const finish = (save) => {
       if (finished) return;
       finished = true;
-      const value = input.value.trim();
-      if (save && value) command.text = value;
-      persistCommands();
+      const next = save
+        ? Domain.createCommand(content.value, command.id, command.createdAt, title.value)
+        : null;
+      if (next) {
+        command.title = next.title;
+        command.text = next.text;
+        persistCommands();
+      }
       renderCommands();
     };
-    input.addEventListener('blur', () => finish(true));
-    input.addEventListener('keydown', (event) => {
-      if (event.key === 'Enter' && !event.isComposing) finish(true);
+    save.addEventListener('click', () => finish(true));
+    cancel.addEventListener('click', () => finish(false));
+    title.addEventListener('keydown', (event) => {
+      if (event.key === 'Enter' && !event.isComposing) {
+        event.preventDefault();
+        content.focus();
+      }
+      if (event.key === 'Escape') finish(false);
+    });
+    content.addEventListener('keydown', (event) => {
+      if (event.key === 'Enter' && (event.metaKey || event.ctrlKey) && !event.isComposing) {
+        event.preventDefault();
+        finish(true);
+      }
       if (event.key === 'Escape') finish(false);
     });
   }
 
+  function addCommand() {
+    if (!commandInput) return;
+    const command = Domain.createCommand(
+      commandInput.value,
+      uid('command'),
+      Date.now(),
+      commandTitleInput && commandTitleInput.value
+    );
+    if (!command) return;
+    commands.unshift(command);
+    commandInput.value = '';
+    if (commandTitleInput) commandTitleInput.value = '';
+    persistCommands();
+    renderCommands();
+    commandInput.focus();
+  }
+
+  commandSaveButton?.addEventListener('click', addCommand);
+  if (commandTitleInput) {
+    commandTitleInput.addEventListener('keydown', (event) => {
+      if (event.key === 'Enter' && !event.isComposing) {
+        event.preventDefault();
+        commandInput?.focus();
+      }
+    });
+  }
   if (commandInput) {
     commandInput.addEventListener('keydown', (event) => {
       if (event.key !== 'Enter' || event.isComposing || event.keyCode === 229 || event.repeat) return;
-      event.preventDefault();
-      const command = Domain.createCommand(commandInput.value, uid('command'), Date.now());
-      if (!command) return;
-      commands.unshift(command);
-      commandInput.value = '';
-      persistCommands();
-      renderCommands();
+      if (event.metaKey || event.ctrlKey) {
+        event.preventDefault();
+        addCommand();
+      }
     });
   }
 

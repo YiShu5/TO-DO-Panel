@@ -182,11 +182,22 @@
     };
   }
 
-  function createCommand(text, id, createdAt) {
+  function deriveCommandTitle(text) {
+    const firstLine = String(text || '')
+      .split(/\r?\n/)
+      .map((line) => line.trim())
+      .find(Boolean) || '';
+    return firstLine.replace(/\s+/g, ' ').slice(0, 80) || '未命名提示词';
+  }
+
+  function createCommand(text, id, createdAt, title) {
     const normalized = String(text || '').trim();
     if (!normalized) return null;
+    const normalizedTitle = String(title || '').replace(/\s+/g, ' ').trim().slice(0, 80)
+      || deriveCommandTitle(normalized);
     return {
       id: String(id || `command-${Date.now().toString(36)}`),
+      title: normalizedTitle,
       text: normalized,
       createdAt: Number.isFinite(createdAt) ? createdAt : Date.now(),
     };
@@ -920,6 +931,7 @@
     renameGroup,
     prependClipboardHistory,
     createCommand,
+    deriveCommandTitle,
     createRecording,
     removeRecordingState,
     calculateRecordingDuration,

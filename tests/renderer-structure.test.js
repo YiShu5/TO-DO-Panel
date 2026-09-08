@@ -29,6 +29,15 @@ test('home scratch note keeps only the save action', () => {
   assert.doesNotMatch(homeNote, /id="note-library"/);
 });
 
+test('common prompts expose a title field and editable prompt body', () => {
+  const commands = html.match(/<section class="tile home-commands"[\s\S]*?<\/section>/)?.[0] || '';
+  assert.match(commands, /id="command-title-add"/);
+  assert.match(commands, /<textarea[^>]*id="command-add"/);
+  assert.match(workspaceJs, /command-edit-title/);
+  assert.match(workspaceJs, /command-edit-content/);
+  assert.match(workspaceJs, /item && item\.title/);
+});
+
 test('recordings expose in-page API settings and create a live draft while recording', () => {
   assert.match(html, /id="recording-configure"/);
   assert.match(workspaceJs, /function beginRecordingDraft\(\)/);
