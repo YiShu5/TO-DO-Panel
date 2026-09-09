@@ -257,6 +257,13 @@
           </section>
 
           <section id="tab-todo" class="tab-panel" role="tabpanel" aria-labelledby="tab-button-todo" aria-hidden="true" inert>
+            <div class="todo-page-head">
+              <div>
+                <span class="tile-label">待办</span>
+                <strong>只看当前清单</strong>
+              </div>
+              <select id="todo-category-filter" aria-label="选择待办清单"></select>
+            </div>
             <div class="sections">
               <section class="quadrant tile" data-priority="P0">
                 <div class="quadrant-header">
@@ -353,14 +360,14 @@
                     <input id="notes-search" type="search" placeholder="搜索笔记" aria-label="搜索笔记" autocomplete="off" />
                   </label>
                 </div>
-                <div class="notes-filters" id="notes-filters" role="tablist" aria-label="笔记四象限筛选">
-                  <button class="notes-filter active" type="button" data-note-quadrant="all" role="tab" aria-selected="true">全部</button>
-                  <button class="notes-filter" type="button" data-note-quadrant="" role="tab" aria-selected="false">待整理</button>
-                  <button class="notes-filter" type="button" data-note-quadrant="iu" role="tab" aria-selected="false">重要且紧急</button>
-                  <button class="notes-filter" type="button" data-note-quadrant="in" role="tab" aria-selected="false">重要不紧急</button>
-                  <button class="notes-filter" type="button" data-note-quadrant="nu" role="tab" aria-selected="false">不重要但紧急</button>
-                  <button class="notes-filter" type="button" data-note-quadrant="nn" role="tab" aria-selected="false">不重要不紧急</button>
-                </div>
+                <select class="notes-filter-select" id="notes-filter-select" aria-label="筛选四象限笔记">
+                  <option value="all">全部笔记</option>
+                  <option value="">待整理</option>
+                  <option value="iu">重要且紧急</option>
+                  <option value="in">重要不紧急</option>
+                  <option value="nu">不重要但紧急</option>
+                  <option value="nn">不重要不紧急</option>
+                </select>
                 <div class="notes-list" id="notes-list"></div>
               </aside>
               <section class="notes-detail tile" id="notes-detail">

@@ -214,6 +214,8 @@ function saveData(data) {
 
 let data = loadData();
 let todoCategoryNames = loadTodoCategoryNames();
+const todoCategoryFilter = document.getElementById('todo-category-filter');
+let activeTodoPriority = 'P0';
 const todoSelections = Object.fromEntries(PRIORITIES.map((priority) => [priority, new Set()]));
 const todoSelectionAnchors = Object.fromEntries(PRIORITIES.map((priority) => [priority, null]));
 let editingTodo = null;
@@ -245,7 +247,26 @@ function applyTodoCategoryNames() {
     if (input) input.value = name;
     if (addInput) addInput.setAttribute('aria-label', `添加${name}待办`);
   });
+  if (todoCategoryFilter) {
+    todoCategoryFilter.replaceChildren(...PRIORITIES.map((priority) => {
+      const option = document.createElement('option');
+      option.value = priority;
+      option.textContent = todoCategoryNames[priority];
+      option.selected = priority === activeTodoPriority;
+      return option;
+    }));
+  }
 }
+
+function applyTodoFocus(priority = activeTodoPriority) {
+  activeTodoPriority = PRIORITIES.includes(priority) ? priority : 'P0';
+  document.querySelectorAll('.sections > .quadrant[data-priority]').forEach((section) => {
+    section.hidden = section.dataset.priority !== activeTodoPriority;
+  });
+  if (todoCategoryFilter) todoCategoryFilter.value = activeTodoPriority;
+}
+
+todoCategoryFilter?.addEventListener('change', () => applyTodoFocus(todoCategoryFilter.value));
 if (window.notchAPI && typeof window.notchAPI.scheduleTodoReminders === 'function') {
   window.notchAPI
     .scheduleTodoReminders(PRIORITIES.flatMap((priority) => data[priority] || []))
@@ -1042,6 +1063,7 @@ document.querySelectorAll('.todo-category-name[data-category]').forEach((input) 
 });
 
 applyTodoCategoryNames();
+applyTodoFocus();
 
 const todoEditorBackdrop = document.getElementById('todo-date-popover');
 const todoEditorMonth = document.getElementById('todo-editor-month');
@@ -1531,7 +1553,7 @@ const notesList = document.getElementById('notes-list');
 const notesSearch = document.getElementById('notes-search');
 const notesDetail = document.getElementById('notes-detail');
 const notesCount = document.getElementById('notes-count');
-const notesFilters = document.getElementById('notes-filters');
+const notesFilterSelect = document.getElementById('notes-filter-select');
 const noteFormatActions = document.getElementById('note-format-actions');
 const noteModeButtons = Array.from(document.querySelectorAll('[data-note-mode]'));
 const noteEditButton = document.getElementById('note-edit-btn');
@@ -2135,7 +2157,6 @@ function loadNoteArchive() {
 
 let selectedNoteId = '';
 let activeNoteQuadrant = 'all';
-let selectedTodoCategory = 'P3';
 
 const NOTE_QUADRANT_LABELS = Object.freeze({
   '': '待整理',
@@ -2174,10 +2195,7 @@ function openNoteFromTodo(noteId) {
   selectedNoteId = id;
   activeNoteQuadrant = 'all';
   if (notesSearch) notesSearch.value = '';
-  notesFilters?.querySelectorAll('[data-note-quadrant]').forEach((button) => {
-    button.classList.toggle('active', button.dataset.noteQuadrant === 'all');
-    button.setAttribute('aria-selected', String(button.dataset.noteQuadrant === 'all'));
-  });
+  if (notesFilterSelect) notesFilterSelect.value = 'all';
   setActiveTab('notes');
   renderNotesLibrary();
 }
@@ -2197,7 +2215,8 @@ function createTodoFromNote(note) {
     showStatusToast(`这篇笔记已在「${todoCategoryNames[existing.priority]}」中`);
     return;
   }
-  const priority = PRIORITIES.includes(selectedTodoCategory) ? selectedTodoCategory : 'P3';
+  // 沿用当前待办聚焦的清单，转入后用户可以立刻在待办页看到它。
+  const priority = activeTodoPriority;
   const text = noteArchiveTitle(note) !== '未命名笔记'
     ? noteArchiveTitle(note)
     : (noteArchiveExcerpt(note) || '整理这篇笔记');
@@ -2263,17 +2282,6 @@ function renderNotesDetail(notes = loadNoteArchive()) {
     option.selected = value === note.quadrant;
     quadrant.append(option);
   });
-  const todoCategory = document.createElement('select');
-  todoCategory.className = 'notes-todo-category';
-  todoCategory.id = 'notes-todo-category';
-  todoCategory.setAttribute('aria-label', '选择待办分类');
-  PRIORITIES.forEach((priority) => {
-    const option = document.createElement('option');
-    option.value = priority;
-    option.textContent = todoCategoryNames[priority];
-    option.selected = priority === selectedTodoCategory;
-    todoCategory.append(option);
-  });
   const todo = document.createElement('button');
   todo.type = 'button';
   todo.className = 'notes-todo';
@@ -2281,7 +2289,7 @@ function renderNotesDetail(notes = loadNoteArchive()) {
   todo.setAttribute('aria-label', '转为待办');
   todo.textContent = findTodoForNote(note.id) ? '已关联待办' : '转为待办';
   todo.disabled = Boolean(findTodoForNote(note.id));
-  actions.append(quadrant, todoCategory, todo);
+  actions.append(quadrant, todo);
   const remove = document.createElement('button');
   remove.type = 'button';
   remove.className = 'notes-delete';
@@ -2433,16 +2441,9 @@ function renderNotesLibrary() {
   renderNotesDetail(notes);
 }
 
-notesFilters?.addEventListener('click', (event) => {
-  const button = event.target.closest('[data-note-quadrant]');
-  if (!button) return;
+notesFilterSelect?.addEventListener('change', () => {
   flushNotesEditorSave();
-  activeNoteQuadrant = button.dataset.noteQuadrant || '';
-  notesFilters.querySelectorAll('[data-note-quadrant]').forEach((item) => {
-    const selected = item === button;
-    item.classList.toggle('active', selected);
-    item.setAttribute('aria-selected', String(selected));
-  });
+  activeNoteQuadrant = notesFilterSelect.value;
   renderNotesLibrary();
 });
 
@@ -2495,12 +2496,6 @@ notesDetail?.addEventListener('change', (event) => {
   localStorage.setItem(NOTE_ARCHIVE_KEY, JSON.stringify(notes.slice(0, 200)));
   renderNotesLibrary();
   showStatusToast(`已标记为「${noteQuadrantLabel(quadrant.value)}」`);
-});
-
-notesDetail?.addEventListener('change', (event) => {
-  const category = event.target.closest('.notes-todo-category');
-  if (!category) return;
-  selectedTodoCategory = PRIORITIES.includes(category.value) ? category.value : 'P3';
 });
 
 notesDetail?.addEventListener('input', (event) => {

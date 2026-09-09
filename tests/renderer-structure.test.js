@@ -19,8 +19,8 @@ test('notes have a dedicated top-level tab and management panel', () => {
   assert.match(html, /data-tab="notes"/);
   assert.match(html, /id="tab-notes"/);
   assert.match(html, /id="notes-search"/);
-  assert.match(html, /id="notes-filters"/);
-  assert.match(html, /data-note-quadrant="iu"/);
+  assert.match(html, /id="notes-filter-select"/);
+  assert.match(html, /<option value="iu">重要且紧急<\/option>/);
   assert.match(html, /id="notes-list"/);
   assert.match(html, /id="notes-detail"/);
   assert.match(appJs, /open-source-note/);

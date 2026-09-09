@@ -6169,3 +6169,194 @@ html[data-theme='light'] .todo-editor-backdrop .todo-editor-card header button {
   background: rgba(21, 143, 164, .1);
   color: var(--text-2);
 }
+
+/* ============ 待办 / 笔记 · 极简聚焦层 ============
+   保留原有数据结构和操作，只把默认视图收敛成一个当前清单，
+   让笔记库和正文成为同一块连续的阅读空间。 */
+#tab-todo {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  height: 100%;
+}
+
+.todo-page-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-3);
+  flex: 0 0 auto;
+  padding: 2px 2px 10px;
+}
+.todo-page-head > div {
+  display: flex;
+  align-items: baseline;
+  gap: var(--s-2);
+  min-width: 0;
+}
+.todo-page-head strong {
+  color: var(--text-2);
+  font-size: var(--fs-caption);
+  font-weight: 500;
+}
+#todo-category-filter,
+.notes-filter-select {
+  height: 30px;
+  min-width: 116px;
+  padding: 0 26px 0 10px;
+  border: 1px solid var(--hairline-soft);
+  border-radius: var(--r-input);
+  outline: none;
+  background: var(--surface-2);
+  color: var(--text-2);
+  font: 500 var(--fs-caption) var(--font);
+  cursor: pointer;
+  transition: border-color var(--d-fast) var(--ease), background var(--d-fast) var(--ease), color var(--d-fast) var(--ease);
+}
+#todo-category-filter:hover,
+#todo-category-filter:focus,
+.notes-filter-select:hover,
+.notes-filter-select:focus {
+  border-color: rgba(126, 169, 255, .38);
+  background: var(--surface-3);
+  color: var(--text-1);
+}
+
+#tab-todo .sections {
+  flex: 1;
+  min-height: 0;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr);
+  gap: 0;
+}
+#tab-todo .quadrant {
+  min-height: 0;
+  padding: 18px 20px 16px;
+  border: 1px solid var(--hairline-soft);
+  border-radius: var(--r-tile);
+  background: linear-gradient(145deg, rgba(255,255,255,.035), rgba(255,255,255,.015));
+}
+#tab-todo .quadrant-header {
+  gap: 8px;
+  margin-bottom: 0;
+  padding-bottom: 11px;
+  border-bottom: 1px solid var(--hairline-soft);
+}
+#tab-todo .quadrant-title,
+#tab-todo .todo-category-name {
+  color: var(--text-1);
+  font-size: var(--fs-body);
+  font-weight: 620;
+}
+#tab-todo .todo-category-name {
+  width: auto;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  font-family: var(--font);
+}
+#tab-todo .todo-category-name:focus {
+  box-shadow: inset 0 -1px 0 rgba(126, 169, 255, .65);
+}
+#tab-todo .todo-list {
+  padding: 6px 0;
+}
+#tab-todo .todo-item {
+  min-height: 42px;
+  padding: 7px 2px;
+  border-bottom: 1px solid var(--hairline-soft);
+  border-radius: 0;
+}
+#tab-todo .todo-item:last-child { border-bottom: 0; }
+#tab-todo .todo-item:hover { background: rgba(255,255,255,.035); }
+#tab-todo .todo-copy { gap: 3px; }
+#tab-todo .todo-text { font-size: var(--fs-body); }
+#tab-todo .add-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  margin-top: auto;
+  padding-top: 12px;
+}
+#tab-todo .add-row input {
+  height: 38px;
+  padding: 0 12px;
+  border: 1px solid var(--hairline-soft);
+  border-radius: var(--r-input);
+  background: rgba(255,255,255,.045);
+}
+#tab-todo .add-row input:focus {
+  border-color: rgba(126, 169, 255, .42);
+  background: rgba(255,255,255,.075);
+  box-shadow: 0 0 0 3px rgba(92,143,226,.08);
+}
+#tab-todo .todo-deadline-trigger {
+  height: 38px;
+  min-width: 48px;
+  border: 1px solid var(--hairline-soft);
+  border-radius: var(--r-input);
+  background: var(--surface-2);
+  color: var(--text-3);
+}
+
+.notes-library-head { margin-bottom: 10px; }
+.notes-library-head strong { font-size: var(--fs-heading-3); }
+.notes-filter-select {
+  width: 100%;
+  margin-bottom: 8px;
+}
+.notes-list {
+  gap: 0;
+  padding: 0;
+}
+.notes-list-item {
+  min-height: 70px;
+  grid-template-rows: auto 1fr;
+  gap: 4px var(--s-2);
+  padding: 12px 12px;
+  border-bottom: 1px solid var(--hairline-soft);
+  border-radius: 0;
+  background: transparent;
+}
+.notes-list-item:hover { background: rgba(255,255,255,.035); }
+.notes-list-item.active {
+  border-bottom-color: transparent;
+  border-radius: var(--r-list-item);
+  background: linear-gradient(100deg, rgba(94,135,226,.17), rgba(255,255,255,.045));
+  box-shadow: inset 2px 0 0 rgba(100, 224, 225, .9);
+}
+.notes-detail {
+  padding: 24px 28px;
+  background: linear-gradient(145deg, rgba(255,255,255,.028), rgba(255,255,255,.012));
+}
+.notes-detail-head {
+  padding-bottom: 16px;
+  border-bottom: 0;
+}
+.notes-detail-title {
+  font-size: 20px;
+}
+.notes-editor {
+  padding: 4px 0 4px;
+  font-size: var(--fs-body-lg);
+  line-height: 1.78;
+}
+
+html[data-theme='light'] #todo-category-filter,
+html[data-theme='light'] .notes-filter-select {
+  border-color: rgba(24, 80, 91, .12);
+  background: rgba(228, 241, 244, .82);
+  color: var(--text-2);
+}
+html[data-theme='light'] #tab-todo .quadrant,
+html[data-theme='light'] .notes-detail {
+  border-color: rgba(24, 80, 91, .12);
+  background: linear-gradient(145deg, rgba(255,255,255,.9), rgba(235,245,247,.9));
+}
+html[data-theme='light'] #tab-todo .add-row input,
+html[data-theme='light'] #tab-todo .todo-deadline-trigger {
+  border-color: rgba(24, 80, 91, .12);
+  background: rgba(228, 241, 244, .82);
+}
