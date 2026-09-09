@@ -5925,3 +5925,99 @@ html[data-theme='light'] .home-mirror {
   --text-4: #74747c;
   color: var(--text-1);
 }
+
+/* 浅色首页可读性：信息型卡片使用海盐蓝底 + 深墨色文字；图片型模块仍保留白字。 */
+:root[data-theme='light'] {
+  --bg-base: #edf5f7;
+  --surface-1: #f9fcfd;
+  --surface-2: #edf4f6;
+  --surface-3: #e2ecef;
+  --hairline: rgba(24, 70, 79, .16);
+  --hairline-soft: rgba(24, 70, 79, .1);
+  --text-1: #17343c;
+  --text-2: #355862;
+  --text-3: #55717a;
+  --text-4: #6e858d;
+  --focus-ring: #159bb8;
+  --item-hover: rgba(23, 80, 91, .075);
+  --panel-shadow: rgba(31, 78, 87, .2);
+}
+
+html[data-theme='light'] .panel::before {
+  background:
+    radial-gradient(70% 80% at 50% -10%, rgba(54, 185, 204, .14), transparent 62%),
+    linear-gradient(155deg, rgba(250, 254, 255, .99), rgba(224, 239, 243, .995) 68%);
+  border-color: rgba(24, 80, 91, .13);
+}
+
+html[data-theme='light'] .tile-label,
+html[data-theme='light'] .clock-date,
+html[data-theme='light'] .note-tool,
+html[data-theme='light'] .note-mode,
+html[data-theme='light'] .windows-refresh,
+html[data-theme='light'] .window-item > strong {
+  color: var(--text-2);
+}
+
+html[data-theme='light'] .tile-label { font-weight: 620; letter-spacing: .25px; }
+html[data-theme='light'] .clock-hm,
+html[data-theme='light'] .note-input,
+html[data-theme='light'] .note-preview,
+html[data-theme='light'] .command-title { color: var(--text-1); }
+html[data-theme='light'] .clock-ss,
+html[data-theme='light'] .note-input::placeholder,
+html[data-theme='light'] .note-preview-empty,
+html[data-theme='light'] .command-text,
+html[data-theme='light'] .command-editor-footer span { color: var(--text-3); }
+
+/* 当前窗口：空状态要说明用途、权限与下一步，而不是只留下低对比度的一行字。 */
+html[data-theme='light'] .window-empty {
+  color: var(--text-3);
+  background: rgba(226, 240, 243, .42);
+  border: 1px dashed rgba(24, 91, 104, .18);
+  border-radius: var(--r-input);
+}
+html[data-theme='light'] .window-empty strong { color: var(--text-1); }
+html[data-theme='light'] .window-permission-open {
+  border-color: rgba(21, 143, 164, .28);
+  background: #f8feff;
+  color: #126b7c;
+  font-weight: 600;
+  box-shadow: 0 3px 10px rgba(22, 111, 126, .1);
+}
+html[data-theme='light'] .window-permission-open:hover { background: #e9f8fa; color: #0b5667; }
+
+/* 指令卡片：标题是主层级，提示词正文保持可读的等宽辅助层级。 */
+html[data-theme='light'] .command-item,
+html[data-theme='light'] .command-title-add,
+html[data-theme='light'] .command-add,
+html[data-theme='light'] .command-edit-title,
+html[data-theme='light'] .command-edit-content {
+  border-color: rgba(24, 80, 91, .11);
+  background: rgba(232, 243, 246, .72);
+}
+html[data-theme='light'] .command-item:hover,
+html[data-theme='light'] .command-item.copied,
+html[data-theme='light'] .command-title-add:focus,
+html[data-theme='light'] .command-add:focus,
+html[data-theme='light'] .command-edit-title:focus,
+html[data-theme='light'] .command-edit-content:focus { background: #f8fdfe; }
+html[data-theme='light'] .command-save,
+html[data-theme='light'] .command-editor-cancel { color: #3b6872; background: #dcebed; }
+html[data-theme='light'] .command-save:hover,
+html[data-theme='light'] .command-editor-cancel:hover { color: #164b57; background: #cde3e7; }
+html[data-theme='light'] .command-editor-save { background: #173f49; color: #f5ffff; }
+
+/* 速记工具栏和番茄钟的控制色不再沿用暗色 rgba(255,255,255)。 */
+html[data-theme='light'] .home-note .note-tool:hover,
+html[data-theme='light'] .home-note .note-mode.active { color: var(--text-1); background: var(--surface-3); }
+html[data-theme='light'] .home-note .note-mode-switch { background: rgba(219, 235, 238, .78); }
+html[data-theme='light'] .home-pomodoro .pomodoro-controls button,
+html[data-theme='light'] .home-pomodoro > .pomodoro-toggle,
+html[data-theme='light'] .home-pomodoro > .pomodoro-reset { color: #285864; background: rgba(235, 250, 251, .84); }
+html[data-theme='light'] .home-pomodoro .pomodoro-dial input,
+html[data-theme='light'] .home-pomodoro .pomodoro-dial span { color: #f7ffff; text-shadow: 0 1px 4px rgba(0, 35, 42, .55); }
+
+/* 音乐封面仍是深色图像模块，但控制按钮要有清晰边界。 */
+html[data-theme='light'] .home-music .music-controls button:not(.music-play) { background: rgba(255, 255, 255, .16); color: #fff; }
+html[data-theme='light'] .home-music .music-controls button:not(.music-play):hover { background: rgba(255, 255, 255, .27); }
