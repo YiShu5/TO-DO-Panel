@@ -6021,3 +6021,61 @@ html[data-theme='light'] .home-pomodoro .pomodoro-dial span { color: #f7ffff; te
 /* 音乐封面仍是深色图像模块，但控制按钮要有清晰边界。 */
 html[data-theme='light'] .home-music .music-controls button:not(.music-play) { background: rgba(255, 255, 255, .16); color: #fff; }
 html[data-theme='light'] .home-music .music-controls button:not(.music-play):hover { background: rgba(255, 255, 255, .27); }
+
+/* 待办日期浮层：弹层也必须跟随浅色主题，不能继续使用暗色日历的白色低透明度。 */
+html[data-theme='light'] .todo-date-popover .todo-editor-card,
+html[data-theme='light'] .todo-editor-backdrop .todo-editor-card {
+  border-color: rgba(24, 80, 91, .16);
+  background: linear-gradient(155deg, #fbfeff, #e5f0f3);
+  color: var(--text-1);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.95), 0 22px 52px rgba(31, 78, 87, .25);
+}
+html[data-theme='light'] .todo-date-popover .todo-editor-card::after {
+  border-color: rgba(24, 80, 91, .16);
+  background: #e5f0f3;
+}
+html[data-theme='light'] .todo-date-popover .todo-calendar-head span,
+html[data-theme='light'] .todo-date-popover .todo-calendar-week,
+html[data-theme='light'] .todo-time-row > span {
+  color: var(--text-3);
+}
+html[data-theme='light'] .todo-date-popover .todo-calendar-head button {
+  background: rgba(21, 143, 164, .1);
+  color: #28616d;
+}
+html[data-theme='light'] .todo-date-popover .todo-calendar-head button:hover {
+  background: rgba(21, 143, 164, .18);
+  color: #164b57;
+}
+html[data-theme='light'] .todo-date-popover .todo-calendar-grid button {
+  color: var(--text-2);
+}
+html[data-theme='light'] .todo-date-popover .todo-calendar-grid button:hover {
+  background: rgba(21, 143, 164, .13);
+  color: var(--text-1);
+}
+html[data-theme='light'] .todo-date-popover .todo-calendar-grid button.today {
+  box-shadow: inset 0 0 0 1px rgba(21, 143, 164, .62);
+}
+html[data-theme='light'] .todo-date-popover .todo-calendar-grid button.selected {
+  background: #1d6673;
+  color: #f7ffff;
+  box-shadow: 0 5px 12px rgba(29, 102, 115, .24);
+}
+html[data-theme='light'] .todo-date-popover .todo-time-row select,
+html[data-theme='light'] .todo-editor-backdrop .todo-time-row select,
+html[data-theme='light'] .todo-editor-backdrop .todo-editor-name input {
+  border: 1px solid rgba(24, 80, 91, .1);
+  background: rgba(228, 241, 244, .82);
+  color: var(--text-1);
+}
+html[data-theme='light'] .todo-date-popover .todo-time-row select:focus,
+html[data-theme='light'] .todo-editor-backdrop .todo-time-row select:focus,
+html[data-theme='light'] .todo-editor-backdrop .todo-editor-name input:focus {
+  border-color: rgba(21, 143, 164, .42);
+  box-shadow: 0 0 0 3px rgba(21, 143, 164, .1);
+}
+html[data-theme='light'] .todo-editor-backdrop .todo-editor-card header button {
+  background: rgba(21, 143, 164, .1);
+  color: var(--text-2);
+}
