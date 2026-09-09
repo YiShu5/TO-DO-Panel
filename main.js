@@ -34,6 +34,7 @@ const {
   parseSmartLinkMetadata,
   extractFaviconHref,
   parseSmartMaterialMetadata,
+  parseSmartCommandMetadata,
   clipboardServicePolicy,
   createClipboardImageFingerprint,
   prepareClipboardImagePayload,
@@ -1924,7 +1925,7 @@ ipcMain.handle('links:inspect', (event, url) => inspectLink(url));
 
 ipcMain.handle('smart:organize-material', async (event, payload) => {
   const config = resolveLlmConfig();
-  const kind = payload && payload.kind === 'note' ? 'note' : 'material';
+  const kind = payload && ['note', 'command'].includes(payload.kind) ? payload.kind : 'material';
   const transcript = String(payload && payload.text || '').trim().slice(0, 8000);
   if (!transcript) return { ok: false, error: 'empty_text' };
   if (!config.apiKey || !config.model) return { ok: false, error: 'not_configured' };
@@ -1948,18 +1949,24 @@ ipcMain.handle('smart:organize-material', async (event, payload) => {
         messages: [
           {
             role: 'system',
-            content: kind === 'note'
+            content: kind === 'command'
+              ? '你是中文提示词命名助手。理解提示词的任务目标，生成一个不超过10个汉字的具体题目。不要照抄正文首句，不要输出标点、引号、分类或解释。只返回 JSON：{"title":"10字以内题目"}。'
+              : kind === 'note'
               ? '你是中文笔记命名助手。理解整篇笔记后概括主题，禁止把正文首句直接当标题。只返回 JSON：{"title":"8到18字的具体标题","category":"2到8字的稳定分类"}。'
               : '你是中文个人资料库整理器。根据内容概括，不要照抄首句。只返回 JSON：{"title":"8到18字的具体名称","category":"2到8字的稳定分类"}。',
           },
-          { role: 'user', content: kind === 'note' ? `请为以下笔记命名：\n\n${transcript}` : transcript },
+          { role: 'user', content: kind === 'command'
+            ? `请为以下提示词命名：\n\n${transcript}`
+            : kind === 'note' ? `请为以下笔记命名：\n\n${transcript}` : transcript },
         ],
       }),
     });
     if (!response.ok) return { ok: false, error: `http_${response.status}` };
     const result = await response.json();
     const content = result && result.choices && result.choices[0] && result.choices[0].message && result.choices[0].message.content;
-    const metadata = parseSmartMaterialMetadata(content);
+    const metadata = kind === 'command'
+      ? parseSmartCommandMetadata(content)
+      : parseSmartMaterialMetadata(content);
     return metadata && metadata.title ? { ok: true, ...metadata } : { ok: false, error: 'invalid_response' };
   } catch (error) {
     return { ok: false, error: error && error.name === 'AbortError' ? 'timeout' : 'request_failed' };

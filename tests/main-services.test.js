@@ -12,6 +12,7 @@ const {
   normalizeCredentialInput,
   parseSmartLinkMetadata,
   parseSmartMaterialMetadata,
+  parseSmartCommandMetadata,
   clipboardServicePolicy,
   createClipboardImageFingerprint,
   installLocalWebContentsGuards,
@@ -157,6 +158,10 @@ test('favicon and smart material metadata are normalized safely', () => {
     title: '周会决策与行动项',
     category: '会议',
   });
+  assert.deepEqual(parseSmartCommandMetadata('```json\n{"title":"  音频转文字并整理成稿件并归档  "}\n```'), {
+    title: '音频转文字并整理成稿',
+  });
+  assert.equal(parseSmartCommandMetadata('{"title":""}'), null);
 });
 
 test('transcription settings fall back to the legacy app directory only when current settings are absent', () => {

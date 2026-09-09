@@ -107,6 +107,13 @@ function parseSmartMaterialMetadata(value) {
   return { title: clean(parsed.title, 48), category: clean(parsed.category, 24) };
 }
 
+function parseSmartCommandMetadata(value) {
+  const metadata = parseSmartMaterialMetadata(value);
+  if (!metadata || !metadata.title) return null;
+  const title = Array.from(metadata.title.replace(/\s+/g, '').trim()).slice(0, 10).join('');
+  return title ? { title } : null;
+}
+
 function selectTranscriptionSettings(current, legacy) {
   const currentSettings = current && typeof current === 'object' && !Array.isArray(current) ? current : {};
   if (Object.keys(currentSettings).length) return currentSettings;
@@ -615,6 +622,7 @@ module.exports = {
   normalizeCredentialInput,
   parseSmartLinkMetadata,
   parseSmartMaterialMetadata,
+  parseSmartCommandMetadata,
   selectTranscriptionSettings,
   clipboardServicePolicy,
   createClipboardImageFingerprint,

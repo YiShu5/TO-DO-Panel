@@ -68,6 +68,7 @@
       item && item.title
     ))
     .filter(Boolean);
+  const pendingCommandTitles = new Set();
   let commandSelection = new Set();
   let commandSelectionAnchor = null;
 
@@ -94,7 +95,7 @@
     }
     commands.forEach((command) => {
       const row = document.createElement('div');
-      row.className = `command-item${commandSelection.has(command.id) ? ' multi-selected' : ''}`;
+      row.className = `command-item${commandSelection.has(command.id) ? ' multi-selected' : ''}${pendingCommandTitles.has(command.id) ? ' command-generating' : ''}`;
       row.dataset.id = command.id;
 
       const copy = document.createElement('div');
@@ -104,7 +105,7 @@
       titleButton.type = 'button';
       titleButton.dataset.action = 'edit-command';
       titleButton.title = '点击修改题目和提示词';
-      titleButton.textContent = command.title;
+      titleButton.textContent = pendingCommandTitles.has(command.id) ? 'DeepSeek 命名中…' : command.title;
       const textButton = document.createElement('button');
       textButton.className = 'command-text';
       textButton.type = 'button';
@@ -203,11 +204,12 @@
 
   function addCommand() {
     if (!commandInput) return;
+    const manualTitle = commandTitleInput && commandTitleInput.value.trim();
     const command = Domain.createCommand(
       commandInput.value,
       uid('command'),
       Date.now(),
-      commandTitleInput && commandTitleInput.value
+      manualTitle
     );
     if (!command) return;
     commands.unshift(command);
@@ -216,6 +218,22 @@
     persistCommands();
     renderCommands();
     commandInput.focus();
+    if (!manualTitle && window.notchAPI?.organizeMaterial) requestCommandTitle(command.id, command.text, command.title);
+  }
+
+  async function requestCommandTitle(commandId, expectedText, fallbackTitle) {
+    pendingCommandTitles.add(commandId);
+    renderCommands();
+    const result = await window.notchAPI.organizeMaterial({ kind: 'command', text: expectedText }).catch(() => null);
+    pendingCommandTitles.delete(commandId);
+    const command = commands.find((item) => item.id === commandId);
+    if (!command) return;
+    const title = result && result.ok ? Array.from(String(result.title || '').replace(/\s+/g, '').trim()).slice(0, 10).join('') : '';
+    if (title && command.text === expectedText && command.title === fallbackTitle) {
+      command.title = title;
+      persistCommands();
+    }
+    renderCommands();
   }
 
   commandSaveButton?.addEventListener('click', addCommand);

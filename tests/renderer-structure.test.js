@@ -4,6 +4,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 
 const html = fs.readFileSync(path.join(__dirname, '..', 'renderer', 'index.html'), 'utf8');
+const mainJs = fs.readFileSync(path.join(__dirname, '..', 'main.js'), 'utf8');
 const appJs = fs.readFileSync(path.join(__dirname, '..', 'renderer', 'app.js'), 'utf8');
 const workspaceJs = fs.readFileSync(path.join(__dirname, '..', 'renderer', 'workspace.js'), 'utf8');
 const effectsJs = fs.readFileSync(path.join(__dirname, '..', 'renderer', 'effects.js'), 'utf8');
@@ -36,6 +37,10 @@ test('common prompts expose a title field and editable prompt body', () => {
   assert.match(workspaceJs, /command-edit-title/);
   assert.match(workspaceJs, /command-edit-content/);
   assert.match(workspaceJs, /item && item\.title/);
+  assert.match(workspaceJs, /kind: 'command'/);
+  assert.match(workspaceJs, /DeepSeek 命名中/);
+  assert.match(mainJs, /parseSmartCommandMetadata/);
+  assert.match(mainJs, /不超过10个汉字/);
 });
 
 test('recordings expose in-page API settings and create a live draft while recording', () => {

@@ -2432,6 +2432,8 @@ body {
 }
 .command-item:hover,
 .command-item.copied { background: var(--surface-3); }
+.command-item.command-generating { border-color: rgba(112, 191, 255, .28); }
+.command-generating .command-title { color: var(--accent-blue); }
 .command-copy { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
 .command-title {
   width: 100%;
