@@ -2434,8 +2434,20 @@ body {
 }
 .command-item:hover,
 .command-item.copied { background: var(--surface-3); }
-.command-item.command-generating { border-color: rgba(112, 191, 255, .28); }
-.command-generating .command-title { color: var(--accent-blue); }
+.command-item.command-generating {
+  border-color: rgba(164, 123, 255, .42);
+  background: linear-gradient(100deg, rgba(117, 82, 190, .14), rgba(52, 126, 184, .08));
+  box-shadow: inset 0 0 0 1px rgba(187, 149, 255, .06), 0 0 18px rgba(135, 93, 218, .08);
+}
+.command-generating .command-title {
+  color: #bd98ff;
+  text-shadow: 0 0 13px rgba(178, 132, 255, .3);
+  animation: command-title-pulse 1.35s var(--ease) infinite;
+}
+@keyframes command-title-pulse {
+  0%, 100% { opacity: .72; }
+  50% { opacity: 1; }
+}
 .command-copy { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
 .command-title {
   width: 100%;
@@ -6009,6 +6021,15 @@ html[data-theme='light'] .command-editor-cancel { color: #3b6872; background: #d
 html[data-theme='light'] .command-save:hover,
 html[data-theme='light'] .command-editor-cancel:hover { color: #164b57; background: #cde3e7; }
 html[data-theme='light'] .command-editor-save { background: #173f49; color: #f5ffff; }
+html[data-theme='light'] .command-item.command-generating {
+  border-color: rgba(105, 74, 183, .34);
+  background: linear-gradient(100deg, rgba(132, 99, 204, .12), rgba(33, 151, 171, .09));
+  box-shadow: inset 0 0 0 1px rgba(105, 74, 183, .06), 0 0 18px rgba(105, 74, 183, .1);
+}
+html[data-theme='light'] .command-generating .command-title {
+  color: #6f4bb8;
+  text-shadow: 0 0 11px rgba(111, 75, 184, .22);
+}
 
 /* 速记工具栏和番茄钟的控制色不再沿用暗色 rgba(255,255,255)。 */
 html[data-theme='light'] .home-note .note-tool:hover,
