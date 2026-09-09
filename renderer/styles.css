@@ -6366,15 +6366,25 @@ html[data-theme='light'] #tab-todo .todo-deadline-trigger {
   right: 24px;
 }
 
-/* 笔记摘要保留两行可读空间，避免标题、摘要和时间挤成一条细线。 */
+/* 列表自己滚动，卡片不能随着条目增多而被 flex 强行压矮。 */
 .notes-list-item {
-  min-height: 82px;
-  grid-template-rows: auto minmax(2.8em, 1fr);
+  display: flex;
+  flex: 0 0 auto;
+  flex-direction: column;
+  align-items: stretch;
+  min-height: 90px;
+  gap: 4px;
 }
 .notes-list-item span {
+  display: block;
+  flex: 0 0 2.9em;
+  min-height: 2.9em;
+  max-height: 2.9em;
   white-space: normal;
-  display: -webkit-box;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
+  overflow-wrap: anywhere;
   line-height: 1.45;
+}
+.notes-list-item time {
+  flex: 0 0 auto;
+  margin-top: auto;
 }
