@@ -3448,6 +3448,21 @@ body {
 .todo-ddl { white-space: nowrap; }
 .todo-copy .todo-battery { width: 58px; height: 14px; }
 .todo-battery b { font-size: 8px; line-height: 14px; }
+.todo-source-note {
+  max-width: 132px;
+  min-width: 0;
+  overflow: hidden;
+  padding: 2px 6px;
+  border: 0;
+  border-radius: var(--r-pill);
+  background: color-mix(in srgb, var(--accent-blue) 14%, transparent);
+  color: color-mix(in srgb, var(--accent-blue) 72%, var(--text-2));
+  font: var(--fs-micro) var(--font);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.todo-source-note:hover { background: color-mix(in srgb, var(--accent-blue) 24%, transparent); color: var(--text-1); }
 .add-row { grid-template-columns: minmax(120px, 1fr) 148px; }
 .todo-deadline-trigger {
   min-width: 0;
@@ -5173,6 +5188,29 @@ body {
   font: var(--fs-caption) var(--font);
 }
 .notes-search-wrap input::placeholder { color: var(--text-4); }
+.notes-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin-bottom: var(--s-3);
+}
+.notes-filter {
+  min-height: 25px;
+  padding: 0 9px;
+  border: 0;
+  border-radius: var(--r-pill);
+  background: var(--surface-2);
+  color: var(--text-4);
+  font: var(--fs-micro) var(--font);
+  cursor: pointer;
+  transition: background var(--d-fast) var(--ease), color var(--d-fast) var(--ease), box-shadow var(--d-fast) var(--ease);
+}
+.notes-filter:hover { color: var(--text-2); background: var(--surface-3); }
+.notes-filter.active {
+  background: color-mix(in srgb, var(--accent-blue) 18%, var(--surface-2));
+  color: var(--text-1);
+  box-shadow: inset 0 0 0 var(--hairline-w) color-mix(in srgb, var(--accent-blue) 30%, transparent);
+}
 .notes-list {
   --line-accent: #7ea9ff;
   flex: 1;
@@ -5278,6 +5316,33 @@ body {
 .notes-detail-title:focus { text-overflow: clip; }
 .notes-detail-head time { color: var(--text-4); font: var(--fs-micro) var(--font-mono); }
 .notes-detail-actions { flex: 0 0 auto; display: flex; align-items: center; gap: var(--s-2); }
+.notes-quadrant-select,
+.notes-todo-category {
+  height: 30px;
+  max-width: 112px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: var(--r-input);
+  outline: none;
+  background: var(--surface-2);
+  color: var(--text-2);
+  font: var(--fs-micro) var(--font);
+  cursor: pointer;
+}
+.notes-quadrant-select:focus,
+.notes-todo-category:focus { box-shadow: inset 0 0 0 var(--hairline-w) rgba(142,178,255,.6); }
+.notes-todo {
+  height: 30px;
+  padding: 0 11px;
+  border: 0;
+  border-radius: var(--r-input);
+  background: color-mix(in srgb, var(--accent-blue) 20%, var(--surface-2));
+  color: var(--text-1);
+  font: 600 var(--fs-micro) var(--font);
+  cursor: pointer;
+}
+.notes-todo:hover { background: color-mix(in srgb, var(--accent-blue) 30%, var(--surface-2)); }
+.notes-todo:disabled { opacity: .56; cursor: default; }
 .notes-delete {
   width: 30px;
   height: 30px;
@@ -5341,6 +5406,8 @@ body {
 @media (max-width: 920px) {
   .notes-page { grid-template-columns: 300px minmax(0, 1fr); }
   .notes-search-wrap { width: 136px; }
+  .notes-detail-head { flex-wrap: wrap; }
+  .notes-detail-actions { width: 100%; justify-content: flex-end; }
 }
 
 /* ============ 首页组件显隐 · 以实际矩形为唯一布局依据 ============ */

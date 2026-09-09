@@ -193,6 +193,8 @@ function normalizeTodoItems(value) {
           ? new Date(Date.parse(String(item.deadline))).toISOString()
           : '',
         remindedAt: Math.max(0, Number(item.remindedAt) || 0),
+        sourceNoteId: typeof item.sourceNoteId === 'string' ? item.sourceNoteId : '',
+        sourceNoteTitle: typeof item.sourceNoteTitle === 'string' ? item.sourceNoteTitle.slice(0, 80) : '',
       };
     })
     .filter(Boolean);
@@ -297,6 +299,13 @@ function todoItemHtml(priority, item) {
     }).format(new Date(item.deadline))
     : '';
   const toggleLabel = item.done ? `恢复未完成：${safeText}` : `标记完成：${safeText}`;
+  const sourceNote = item.sourceNoteId
+    ? loadNoteArchive().find((note) => note.id === item.sourceNoteId)
+    : null;
+  const sourceNoteTitle = noteArchiveTitle(sourceNote || { title: item.sourceNoteTitle }) || '来源笔记';
+  const sourceNoteHtml = item.sourceNoteId
+    ? `<button class="todo-source-note" type="button" data-action="open-source-note" title="打开来源笔记：${escapeHtml(sourceNoteTitle)}" aria-label="打开来源笔记：${escapeHtml(sourceNoteTitle)}">⌁ ${escapeHtml(sourceNoteTitle)}</button>`
+    : '';
   const battery = window.NotchDomain.todoTimeBattery(item, Date.now());
   // 逾期项整条填满红色并只显示一个白色感叹号：剩余 0% 是「快到了」，
   // 逾期是「已经欠账」，两者不能长得一样。
@@ -306,7 +315,7 @@ function todoItemHtml(priority, item) {
   const isEditing = editingTodo?.priority === priority && editingTodo?.id === item.id;
   const contentHtml = isEditing
     ? `<div class="todo-inline-editor"><input class="todo-inline-name" value="${safeText}" maxlength="80" aria-label="修改待办名称" />${batteryHtml}<button class="todo-inline-deadline" type="button" data-action="edit-deadline">${deadline || '日期'}</button><button class="todo-inline-save" type="button" data-action="save-edit" aria-label="保存修改">✓</button></div>`
-    : `<button class="todo-copy" type="button" data-action="edit" title="${safeText}" aria-label="修改：${safeText}"><span class="todo-text">${safeText}</span>${batteryHtml}${deadline ? `<time class="todo-ddl" datetime="${escapeHtml(item.deadline)}">${escapeHtml(deadline)}</time>` : ''}</button>`;
+    : `<div class="todo-copy" data-action="edit" role="button" tabindex="0" title="${safeText}" aria-label="修改：${safeText}"><span class="todo-text">${safeText}</span>${batteryHtml}${deadline ? `<time class="todo-ddl" datetime="${escapeHtml(item.deadline)}">${escapeHtml(deadline)}</time>` : ''}${sourceNoteHtml}</div>`;
   return `
     <li class="todo-item${doneClass}${selectedClass}" data-id="${safeId}" data-priority="${priority}">
       <button class="checkbox" type="button" data-action="toggle" aria-label="${toggleLabel}" aria-pressed="${item.done}">${checkSvg()}</button>
@@ -1268,6 +1277,9 @@ PRIORITIES.forEach((priority) => {
     const action = target.dataset.action;
     if (action === 'toggle') {
       toggleTodo(priority, id);
+    } else if (action === 'open-source-note') {
+      const todo = (data[priority] || []).find((candidate) => candidate.id === id);
+      if (todo?.sourceNoteId) openNoteFromTodo(todo.sourceNoteId);
     } else if (action === 'edit') {
       const todo = (data[priority] || []).find((item) => item.id === id);
       if (todo) {
@@ -1290,7 +1302,18 @@ PRIORITIES.forEach((priority) => {
   });
   list.addEventListener('keydown', (event) => {
     const item = event.target.closest('.todo-item');
-    if (!item || !event.target.matches('.todo-inline-name')) return;
+    if (!item) return;
+    if (event.target.matches('.todo-copy') && (event.key === 'Enter' || event.key === ' ')) {
+      event.preventDefault();
+      event.target.click();
+      return;
+    }
+    if (event.target.matches('.todo-source-note') && (event.key === 'Enter' || event.key === ' ')) {
+      event.preventDefault();
+      event.target.click();
+      return;
+    }
+    if (!event.target.matches('.todo-inline-name')) return;
     if (event.key === 'Escape') {
       editingTodo = null;
       renderList(priority);
@@ -1508,6 +1531,7 @@ const notesList = document.getElementById('notes-list');
 const notesSearch = document.getElementById('notes-search');
 const notesDetail = document.getElementById('notes-detail');
 const notesCount = document.getElementById('notes-count');
+const notesFilters = document.getElementById('notes-filters');
 const noteFormatActions = document.getElementById('note-format-actions');
 const noteModeButtons = Array.from(document.querySelectorAll('[data-note-mode]'));
 const noteEditButton = document.getElementById('note-edit-btn');
@@ -2110,6 +2134,16 @@ function loadNoteArchive() {
 }
 
 let selectedNoteId = '';
+let activeNoteQuadrant = 'all';
+let selectedTodoCategory = 'P3';
+
+const NOTE_QUADRANT_LABELS = Object.freeze({
+  '': '待整理',
+  iu: '重要且紧急',
+  in: '重要不紧急',
+  nu: '不重要但紧急',
+  nn: '不重要不紧急',
+});
 
 function noteArchiveTitle(note) {
   return String(note && note.title || '').trim() || '未命名笔记';
@@ -2128,6 +2162,59 @@ function noteArchiveTime(timestamp) {
     hour: '2-digit',
     minute: '2-digit',
   }).format(new Date(timestamp));
+}
+
+function noteQuadrantLabel(quadrant) {
+  return NOTE_QUADRANT_LABELS[quadrant] || NOTE_QUADRANT_LABELS[''];
+}
+
+function openNoteFromTodo(noteId) {
+  const id = String(noteId || '').trim();
+  if (!id) return;
+  selectedNoteId = id;
+  activeNoteQuadrant = 'all';
+  if (notesSearch) notesSearch.value = '';
+  notesFilters?.querySelectorAll('[data-note-quadrant]').forEach((button) => {
+    button.classList.toggle('active', button.dataset.noteQuadrant === 'all');
+    button.setAttribute('aria-selected', String(button.dataset.noteQuadrant === 'all'));
+  });
+  setActiveTab('notes');
+  renderNotesLibrary();
+}
+
+function findTodoForNote(noteId) {
+  return PRIORITIES.flatMap((priority) => (data[priority] || []).map((item) => ({ priority, item })))
+    .find(({ item }) => item.sourceNoteId === noteId) || null;
+}
+
+function createTodoFromNote(note) {
+  if (!note || !String(note.content || '').trim()) {
+    showStatusToast('先写点内容再转为待办');
+    return;
+  }
+  const existing = findTodoForNote(note.id);
+  if (existing) {
+    showStatusToast(`这篇笔记已在「${todoCategoryNames[existing.priority]}」中`);
+    return;
+  }
+  const priority = PRIORITIES.includes(selectedTodoCategory) ? selectedTodoCategory : 'P3';
+  const text = noteArchiveTitle(note) !== '未命名笔记'
+    ? noteArchiveTitle(note)
+    : (noteArchiveExcerpt(note) || '整理这篇笔记');
+  const deadline = window.NotchDomain.defaultTodoDeadline(new Date());
+  const item = window.NotchDomain.createTodo(text, deadline, generateId(), Date.now());
+  if (!item) {
+    showStatusToast('暂时无法创建待办');
+    return;
+  }
+  item.sourceNoteId = note.id;
+  item.sourceNoteTitle = noteArchiveTitle(note);
+  data[priority].push(item);
+  saveData(data);
+  renderList(priority);
+  updateCount(priority);
+  renderNotesDetail(loadNoteArchive());
+  showStatusToast(`已加入「${todoCategoryNames[priority]}」`);
 }
 
 function renderNotesDetail(notes = loadNoteArchive()) {
@@ -2164,6 +2251,37 @@ function renderNotesDetail(notes = loadNoteArchive()) {
   heading.append(title, time);
   const actions = document.createElement('div');
   actions.className = 'notes-detail-actions';
+  const quadrant = document.createElement('select');
+  quadrant.className = 'notes-quadrant-select';
+  quadrant.dataset.action = 'set-quadrant';
+  quadrant.dataset.noteId = note.id;
+  quadrant.setAttribute('aria-label', '设置笔记四象限');
+  Object.entries(NOTE_QUADRANT_LABELS).forEach(([value, label]) => {
+    const option = document.createElement('option');
+    option.value = value;
+    option.textContent = label;
+    option.selected = value === note.quadrant;
+    quadrant.append(option);
+  });
+  const todoCategory = document.createElement('select');
+  todoCategory.className = 'notes-todo-category';
+  todoCategory.id = 'notes-todo-category';
+  todoCategory.setAttribute('aria-label', '选择待办分类');
+  PRIORITIES.forEach((priority) => {
+    const option = document.createElement('option');
+    option.value = priority;
+    option.textContent = todoCategoryNames[priority];
+    option.selected = priority === selectedTodoCategory;
+    todoCategory.append(option);
+  });
+  const todo = document.createElement('button');
+  todo.type = 'button';
+  todo.className = 'notes-todo';
+  todo.dataset.action = 'create-todo';
+  todo.setAttribute('aria-label', '转为待办');
+  todo.textContent = findTodoForNote(note.id) ? '已关联待办' : '转为待办';
+  todo.disabled = Boolean(findTodoForNote(note.id));
+  actions.append(quadrant, todoCategory, todo);
   const remove = document.createElement('button');
   remove.type = 'button';
   remove.className = 'notes-delete';
@@ -2281,7 +2399,10 @@ function scheduleNotesEditorSave(editor) {
 function renderNotesLibrary() {
   if (!notesList) return;
   const archive = loadNoteArchive();
-  const notes = window.NotchDomain.filterNotes(archive, notesSearch?.value || '');
+  const searched = window.NotchDomain.filterNotes(archive, notesSearch?.value || '');
+  const notes = activeNoteQuadrant === 'all'
+    ? searched
+    : searched.filter((note) => note.quadrant === activeNoteQuadrant);
   if (notesCount) notesCount.textContent = `${archive.length} 篇`;
   if (!notes.some((note) => note.id === selectedNoteId)) selectedNoteId = notes[0]?.id || '';
   notesList.replaceChildren();
@@ -2311,6 +2432,19 @@ function renderNotesLibrary() {
   });
   renderNotesDetail(notes);
 }
+
+notesFilters?.addEventListener('click', (event) => {
+  const button = event.target.closest('[data-note-quadrant]');
+  if (!button) return;
+  flushNotesEditorSave();
+  activeNoteQuadrant = button.dataset.noteQuadrant || '';
+  notesFilters.querySelectorAll('[data-note-quadrant]').forEach((item) => {
+    const selected = item === button;
+    item.classList.toggle('active', selected);
+    item.setAttribute('aria-selected', String(selected));
+  });
+  renderNotesLibrary();
+});
 
 noteSaveButton?.addEventListener('click', () => {
   const content = noteInput?.value.trim() || '';
@@ -2347,6 +2481,26 @@ notesList?.addEventListener('click', (event) => {
 notesSearch?.addEventListener('input', () => {
   flushNotesEditorSave();
   renderNotesLibrary();
+});
+
+notesDetail?.addEventListener('change', (event) => {
+  const quadrant = event.target.closest('[data-action="set-quadrant"]');
+  if (!quadrant?.dataset.noteId) return;
+  const notes = window.NotchDomain.updateNoteQuadrant(
+    loadNoteArchive(),
+    quadrant.dataset.noteId,
+    quadrant.value,
+    Date.now()
+  );
+  localStorage.setItem(NOTE_ARCHIVE_KEY, JSON.stringify(notes.slice(0, 200)));
+  renderNotesLibrary();
+  showStatusToast(`已标记为「${noteQuadrantLabel(quadrant.value)}」`);
+});
+
+notesDetail?.addEventListener('change', (event) => {
+  const category = event.target.closest('.notes-todo-category');
+  if (!category) return;
+  selectedTodoCategory = PRIORITIES.includes(category.value) ? category.value : 'P3';
 });
 
 notesDetail?.addEventListener('input', (event) => {
@@ -2392,6 +2546,9 @@ notesDetail?.addEventListener('click', (event) => {
     renderNotesLibrary();
     showStatusToast('笔记已删除');
     return;
+  }
+  if (action === 'create-todo') {
+    createTodoFromNote(note);
   }
 });
 

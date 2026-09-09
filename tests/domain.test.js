@@ -47,6 +47,7 @@ const {
   filterNotes,
   updateNoteInArchive,
   updateNoteTitle,
+  updateNoteQuadrant,
   applyGeneratedNoteTitle,
   apiCredentialStatuses,
   prependClipboardHistory,
@@ -478,6 +479,7 @@ test('saved notes preserve cleared content and keep recently updated notes first
   assert.equal(notes[2].content, '  # 旧笔记\n正文  ');
   assert.equal(notes[2].title, '产品复盘');
   assert.equal(notes[2].titleSource, 'model');
+  assert.equal(notes[2].quadrant, '');
   assert.equal(notes[2].updatedAt, 200);
 });
 
@@ -492,6 +494,7 @@ test('editing a saved note updates content and timestamp without losing its iden
     id: 'selected',
     title: '',
     titleSource: '',
+    quadrant: '',
     content: '新内容\n第二行',
     createdAt: 100,
     updatedAt: 400,
@@ -521,10 +524,22 @@ test('users can rename a note without changing its content', () => {
     id: 'note-1',
     title: '用户自己的标题',
     titleSource: 'user',
+    quadrant: '',
     content: '正文',
     createdAt: 100,
     updatedAt: 300,
   });
+});
+
+test('notes can be assigned to a simple four-quadrant priority without losing metadata', () => {
+  const notes = normalizeNoteArchive([
+    { id: 'note-1', title: '会议', content: '正文', createdAt: 100, updatedAt: 200 },
+  ]);
+  const updated = updateNoteQuadrant(notes, 'note-1', 'iu', 300);
+  assert.equal(updated[0].quadrant, 'iu');
+  assert.equal(updated[0].content, '正文');
+  assert.equal(updated[0].updatedAt, 300);
+  assert.equal(updateNoteQuadrant(updated, 'note-1', 'invalid', 400)[0].quadrant, '');
 });
 
 test('generated note titles never overwrite user titles or stale content', () => {

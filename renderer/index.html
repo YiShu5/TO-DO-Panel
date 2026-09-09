@@ -353,6 +353,14 @@
                     <input id="notes-search" type="search" placeholder="搜索笔记" aria-label="搜索笔记" autocomplete="off" />
                   </label>
                 </div>
+                <div class="notes-filters" id="notes-filters" role="tablist" aria-label="笔记四象限筛选">
+                  <button class="notes-filter active" type="button" data-note-quadrant="all" role="tab" aria-selected="true">全部</button>
+                  <button class="notes-filter" type="button" data-note-quadrant="" role="tab" aria-selected="false">待整理</button>
+                  <button class="notes-filter" type="button" data-note-quadrant="iu" role="tab" aria-selected="false">重要且紧急</button>
+                  <button class="notes-filter" type="button" data-note-quadrant="in" role="tab" aria-selected="false">重要不紧急</button>
+                  <button class="notes-filter" type="button" data-note-quadrant="nu" role="tab" aria-selected="false">不重要但紧急</button>
+                  <button class="notes-filter" type="button" data-note-quadrant="nn" role="tab" aria-selected="false">不重要不紧急</button>
+                </div>
                 <div class="notes-list" id="notes-list"></div>
               </aside>
               <section class="notes-detail tile" id="notes-detail">

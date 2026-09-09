@@ -19,8 +19,13 @@ test('notes have a dedicated top-level tab and management panel', () => {
   assert.match(html, /data-tab="notes"/);
   assert.match(html, /id="tab-notes"/);
   assert.match(html, /id="notes-search"/);
+  assert.match(html, /id="notes-filters"/);
+  assert.match(html, /data-note-quadrant="iu"/);
   assert.match(html, /id="notes-list"/);
   assert.match(html, /id="notes-detail"/);
+  assert.match(appJs, /open-source-note/);
+  assert.match(appJs, /updateNoteQuadrant/);
+  assert.match(appJs, /createTodoFromNote/);
 });
 
 test('home scratch note keeps only the save action', () => {

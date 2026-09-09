@@ -399,9 +399,10 @@
         if (!id) return null;
         const title = Array.from(String(item.title || '').replace(/\s+/g, ' ').trim()).slice(0, 80).join('');
         const titleSource = ['model', 'user'].includes(item.titleSource) ? item.titleSource : '';
+        const quadrant = ['iu', 'in', 'nu', 'nn'].includes(item.quadrant) ? item.quadrant : '';
         const createdAt = Math.max(0, Number(item.createdAt) || Date.now());
         const updatedAt = Math.max(createdAt, Number(item.updatedAt) || createdAt);
-        return { id, title, titleSource, content, createdAt, updatedAt };
+        return { id, title, titleSource, quadrant, content, createdAt, updatedAt };
       })
       .filter(Boolean)
       .sort((left, right) => right.updatedAt - left.updatedAt);
@@ -446,6 +447,23 @@
         ...note,
         title: nextTitle,
         titleSource: 'user',
+        updatedAt: Math.max(note.createdAt, timestamp),
+      };
+    });
+    return found ? normalizeNoteArchive(next) : next;
+  }
+
+  function updateNoteQuadrant(notes, noteId, quadrant, updatedAt = Date.now()) {
+    const id = String(noteId || '').trim();
+    const nextQuadrant = ['iu', 'in', 'nu', 'nn'].includes(quadrant) ? quadrant : '';
+    const timestamp = Math.max(0, Number(updatedAt) || Date.now());
+    let found = false;
+    const next = normalizeNoteArchive(notes).map((note) => {
+      if (note.id !== id) return note;
+      found = true;
+      return {
+        ...note,
+        quadrant: nextQuadrant,
         updatedAt: Math.max(note.createdAt, timestamp),
       };
     });
@@ -948,6 +966,7 @@
     filterNotes,
     updateNoteInArchive,
     updateNoteTitle,
+    updateNoteQuadrant,
     applyGeneratedNoteTitle,
     apiCredentialStatuses,
     settingsSummary,
