@@ -28,6 +28,16 @@ test('notes have a dedicated top-level tab and management panel', () => {
   assert.match(appJs, /createTodoFromNote/);
 });
 
+test('todo keeps four work streams visible and note routing explicit', () => {
+  assert.match(html, /四个清单同时显示/);
+  assert.doesNotMatch(html, /id="todo-category-filter"/);
+  assert.equal((html.match(/class="quadrant tile" data-priority="P[0-3]"/g) || []).length, 4);
+  assert.match(appJs, /className = 'notes-todo-category'/);
+  assert.match(appJs, /const priority = PRIORITIES\.includes\(selectedTodoCategory\)/);
+  assert.doesNotMatch(appJs, /function applyTodoFocus/);
+  assert.match(stylesCss, /grid-template-columns: repeat\(2, minmax\(0, 1fr\)\)/);
+});
+
 test('home scratch note keeps only the save action', () => {
   const homeNote = html.match(/<section class="tile home-note"[\s\S]*?<\/section>/)?.[0] || '';
   assert.match(homeNote, /id="note-save-btn"/);

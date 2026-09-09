@@ -214,8 +214,6 @@ function saveData(data) {
 
 let data = loadData();
 let todoCategoryNames = loadTodoCategoryNames();
-const todoCategoryFilter = document.getElementById('todo-category-filter');
-let activeTodoPriority = 'P0';
 const todoSelections = Object.fromEntries(PRIORITIES.map((priority) => [priority, new Set()]));
 const todoSelectionAnchors = Object.fromEntries(PRIORITIES.map((priority) => [priority, null]));
 let editingTodo = null;
@@ -247,26 +245,7 @@ function applyTodoCategoryNames() {
     if (input) input.value = name;
     if (addInput) addInput.setAttribute('aria-label', `添加${name}待办`);
   });
-  if (todoCategoryFilter) {
-    todoCategoryFilter.replaceChildren(...PRIORITIES.map((priority) => {
-      const option = document.createElement('option');
-      option.value = priority;
-      option.textContent = todoCategoryNames[priority];
-      option.selected = priority === activeTodoPriority;
-      return option;
-    }));
-  }
 }
-
-function applyTodoFocus(priority = activeTodoPriority) {
-  activeTodoPriority = PRIORITIES.includes(priority) ? priority : 'P0';
-  document.querySelectorAll('.sections > .quadrant[data-priority]').forEach((section) => {
-    section.hidden = section.dataset.priority !== activeTodoPriority;
-  });
-  if (todoCategoryFilter) todoCategoryFilter.value = activeTodoPriority;
-}
-
-todoCategoryFilter?.addEventListener('change', () => applyTodoFocus(todoCategoryFilter.value));
 if (window.notchAPI && typeof window.notchAPI.scheduleTodoReminders === 'function') {
   window.notchAPI
     .scheduleTodoReminders(PRIORITIES.flatMap((priority) => data[priority] || []))
@@ -1063,7 +1042,6 @@ document.querySelectorAll('.todo-category-name[data-category]').forEach((input) 
 });
 
 applyTodoCategoryNames();
-applyTodoFocus();
 
 const todoEditorBackdrop = document.getElementById('todo-date-popover');
 const todoEditorMonth = document.getElementById('todo-editor-month');
@@ -2157,6 +2135,8 @@ function loadNoteArchive() {
 
 let selectedNoteId = '';
 let activeNoteQuadrant = 'all';
+// 笔记转待办时显式选择落入哪个工作清单，避免依赖待办页的隐藏筛选状态。
+let selectedTodoCategory = 'P3';
 
 const NOTE_QUADRANT_LABELS = Object.freeze({
   '': '待整理',
@@ -2215,8 +2195,7 @@ function createTodoFromNote(note) {
     showStatusToast(`这篇笔记已在「${todoCategoryNames[existing.priority]}」中`);
     return;
   }
-  // 沿用当前待办聚焦的清单，转入后用户可以立刻在待办页看到它。
-  const priority = activeTodoPriority;
+  const priority = PRIORITIES.includes(selectedTodoCategory) ? selectedTodoCategory : 'P3';
   const text = noteArchiveTitle(note) !== '未命名笔记'
     ? noteArchiveTitle(note)
     : (noteArchiveExcerpt(note) || '整理这篇笔记');
@@ -2282,6 +2261,16 @@ function renderNotesDetail(notes = loadNoteArchive()) {
     option.selected = value === note.quadrant;
     quadrant.append(option);
   });
+  const todoCategory = document.createElement('select');
+  todoCategory.className = 'notes-todo-category';
+  todoCategory.setAttribute('aria-label', '选择待办清单');
+  PRIORITIES.forEach((priority) => {
+    const option = document.createElement('option');
+    option.value = priority;
+    option.textContent = todoCategoryNames[priority];
+    option.selected = priority === selectedTodoCategory;
+    todoCategory.append(option);
+  });
   const todo = document.createElement('button');
   todo.type = 'button';
   todo.className = 'notes-todo';
@@ -2289,7 +2278,7 @@ function renderNotesDetail(notes = loadNoteArchive()) {
   todo.setAttribute('aria-label', '转为待办');
   todo.textContent = findTodoForNote(note.id) ? '已关联待办' : '转为待办';
   todo.disabled = Boolean(findTodoForNote(note.id));
-  actions.append(quadrant, todo);
+  actions.append(quadrant, todoCategory, todo);
   const remove = document.createElement('button');
   remove.type = 'button';
   remove.className = 'notes-delete';
@@ -2486,6 +2475,11 @@ notesSearch?.addEventListener('input', () => {
 
 notesDetail?.addEventListener('change', (event) => {
   const quadrant = event.target.closest('[data-action="set-quadrant"]');
+  const todoCategory = event.target.closest('.notes-todo-category');
+  if (todoCategory) {
+    selectedTodoCategory = PRIORITIES.includes(todoCategory.value) ? todoCategory.value : 'P3';
+    return;
+  }
   if (!quadrant?.dataset.noteId) return;
   const notes = window.NotchDomain.updateNoteQuadrant(
     loadNoteArchive(),

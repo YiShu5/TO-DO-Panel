@@ -6223,13 +6223,12 @@ html[data-theme='light'] .todo-editor-backdrop .todo-editor-card header button {
 }
 
 #tab-todo .sections {
-  flex: 0 1 auto;
+  flex: 1 1 auto;
   min-height: 0;
-  height: auto;
-  align-items: start;
-  grid-template-columns: minmax(0, 1fr);
-  grid-template-rows: auto;
-  gap: 0;
+  height: 100%;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-rows: repeat(2, minmax(0, 1fr));
+  gap: var(--s-3);
 }
 #tab-todo .quadrant {
   min-height: 0;
@@ -6264,8 +6263,9 @@ html[data-theme='light'] .todo-editor-backdrop .todo-editor-card header button {
   box-shadow: inset 0 -1px 0 rgba(126, 169, 255, .65);
 }
 #tab-todo .todo-list {
-  flex: 0 1 auto;
-  max-height: min(360px, 44vh);
+  flex: 1 1 auto;
+  min-height: 0;
+  max-height: none;
   padding: 6px 0;
 }
 #tab-todo .todo-item {
@@ -6282,7 +6282,7 @@ html[data-theme='light'] .todo-editor-backdrop .todo-editor-card header button {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   gap: 8px;
-  margin-top: 12px;
+  margin-top: auto;
   padding-top: 12px;
 }
 #tab-todo .add-row input {
