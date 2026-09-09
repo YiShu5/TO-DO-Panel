@@ -6360,3 +6360,21 @@ html[data-theme='light'] #tab-todo .todo-deadline-trigger {
   border-color: rgba(24, 80, 91, .12);
   background: rgba(228, 241, 244, .82);
 }
+
+/* 顶栏两组 Tab 在窄屏上不能把最右侧“设置”推出窗口。 */
+.topbar > .tabs.is-split {
+  right: 24px;
+}
+
+/* 笔记摘要保留两行可读空间，避免标题、摘要和时间挤成一条细线。 */
+.notes-list-item {
+  min-height: 82px;
+  grid-template-rows: auto minmax(2.8em, 1fr);
+}
+.notes-list-item span {
+  white-space: normal;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-height: 1.45;
+}
