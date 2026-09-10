@@ -3,7 +3,7 @@
   "version": "1.0.4",
   "description": "TO-DO Panel - a local workspace that lives under the Mac notch",
   "main": "main.js",
-  "author": "xiaopu-ai",
+  "author": "yishu",
   "license": "MIT",
   "scripts": {
     "test": "node --test tests/*.test.js && env -u ELECTRON_RUN_AS_NODE electron tests/notch-focus.electron.js && node --check main.js && node --check main-services.js && node --check preload.js && node --check renderer/domain.js && node --check renderer/effects.js && node --check renderer/app.js && node --check renderer/workspace.js && node --check renderer/icon-motion.js && node --check renderer/notification.js && node --check build/afterPack.js && node --check scripts/codex-notify.js && node --check scripts/claude-notify.js",
@@ -20,7 +20,7 @@
     "appId": "com.dynamicpanel.app",
     "productName": "TO-DO Panel",
     "artifactName": "TO-DO-Panel-${version}-${arch}.${ext}",
-    "copyright": "© 2026 xiaopu-ai",
+    "copyright": "© 2026 yishu",
     "asar": false,
     "directories": {
       "output": "dist.noindex",

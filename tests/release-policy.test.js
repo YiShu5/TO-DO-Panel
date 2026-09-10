@@ -106,7 +106,7 @@ test('release version and public download entry points stay aligned', () => {
   const websiteContent = fs.readFileSync(websiteContentPath, 'utf8');
 
   assert.match(readme, new RegExp(`当前稳定版本：\\*\\*${packageVersion.replaceAll('.', '\\.')}`));
-  assert.match(readme, /https:\/\/github\.com\/xiaopu-ai\/TO-DO-Panel\/releases\/latest/);
-  assert.match(websiteContent, /DOWNLOAD_URL\s*=\s*"https:\/\/github\.com\/xiaopu-ai\/TO-DO-Panel\/releases\/latest"/);
-  assert.match(websiteDownload, /LATEST_RELEASE_API_URL\s*=\s*"https:\/\/api\.github\.com\/repos\/xiaopu-ai\/TO-DO-Panel\/releases\/latest"/);
+  assert.match(readme, /https:\/\/github\.com\/YiShu5\/TO-DO-Panel\/releases\/latest/);
+  assert.match(websiteContent, /DOWNLOAD_URL\s*=\s*"https:\/\/github\.com\/YiShu5\/TO-DO-Panel\/releases\/latest"/);
+  assert.match(websiteDownload, /LATEST_RELEASE_API_URL\s*=\s*"https:\/\/api\.github\.com\/repos\/YiShu5\/TO-DO-Panel\/releases\/latest"/);
 });

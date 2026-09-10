@@ -1,4 +1,4 @@
-export const LATEST_RELEASE_API_URL = "https://api.github.com/repos/xiaopu-ai/TO-DO-Panel/releases/latest";
+export const LATEST_RELEASE_API_URL = "https://api.github.com/repos/YiShu5/TO-DO-Panel/releases/latest";
 
 export function selectMacDownloadUrl(release) {
   if (!release || !Array.isArray(release.assets)) return null;

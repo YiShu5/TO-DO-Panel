@@ -4,16 +4,16 @@
   <p><strong>把 Mac 刘海，变成随手可用的工作台。</strong></p>
   <p>待办、随笔记、链接、录音与本机 AI 提醒，始终贴顶待命。</p>
   <p>
-    <a href="https://github.com/xiaopu-ai/TO-DO-Panel/releases/latest"><strong>下载 macOS 版</strong></a>
+    <a href="https://github.com/YiShu5/TO-DO-Panel/releases/latest"><strong>下载 macOS 版</strong></a>
     ·
     <a href="#从源码运行">从源码运行</a>
     ·
     <a href="#更新日志">更新日志</a>
     ·
-    <a href="https://github.com/xiaopu-ai/TO-DO-Panel/issues">反馈问题</a>
+    <a href="https://github.com/YiShu5/TO-DO-Panel/issues">反馈问题</a>
   </p>
   <p>
-    <img alt="Release" src="https://img.shields.io/github/v/release/xiaopu-ai/TO-DO-Panel?style=flat-square&color=7c8cff" />
+    <img alt="Release" src="https://img.shields.io/github/v/release/YiShu5/TO-DO-Panel?style=flat-square&color=7c8cff" />
     <img alt="macOS 13+ Apple Silicon" src="https://img.shields.io/badge/macOS-13%2B%20Apple%20Silicon-111318?style=flat-square&logo=apple" />
     <img alt="License MIT" src="https://img.shields.io/badge/license-MIT-35c58b?style=flat-square" />
     <img alt="Electron 44" src="https://img.shields.io/badge/Electron-44-47848f?style=flat-square&logo=electron" />
@@ -52,7 +52,7 @@ TO-DO Panel 是一个常驻 macOS 屏幕顶部的本地工作台。默认折叠�
 
 > 当前稳定版本：**1.0.4** · 支持 **macOS 13.0+ 的 Apple Silicon Mac**
 
-1. 前往 [GitHub Releases](https://github.com/xiaopu-ai/TO-DO-Panel/releases/latest) 下载 `TO-DO-Panel-*-arm64.dmg`。
+1. 前往 [GitHub Releases](https://github.com/YiShu5/TO-DO-Panel/releases/latest) 下载 `TO-DO-Panel-*-arm64.dmg`。
 2. 打开 DMG，将 `TO-DO Panel.app` 拖入「应用程序」。
 3. 首次启动若被 macOS 拦截，前往「系统设置 → 隐私与安全性」，点击「仍要打开」。
 4. 再次启动，根据需要授予辅助功能、屏幕录制、麦克风或摄像头权限。
@@ -95,7 +95,7 @@ curl -X POST http://127.0.0.1:43821/notify/codex \
 桌面端要求 Node.js 22.12.0+：
 
 ```bash
-git clone https://github.com/xiaopu-ai/TO-DO-Panel.git
+git clone https://github.com/YiShu5/TO-DO-Panel.git
 cd TO-DO-Panel
 npm install
 npm test
@@ -141,4 +141,4 @@ npm run dev
 
 ## License
 
-[MIT](LICENSE) © 2026 [xiaopu-ai](https://github.com/xiaopu-ai)
+[MIT](LICENSE) © 2026 [yishu](https://github.com/YiShu5)

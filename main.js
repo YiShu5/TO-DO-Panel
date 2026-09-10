@@ -1403,7 +1403,7 @@ function refreshTrayMenu() {
           cancelId: 1,
           noLink: true,
         }).then(({ response }) => {
-          if (response === 0) shell.openExternal('https://github.com/xiaopu-ai/TO-DO-Panel');
+          if (response === 0) shell.openExternal('https://github.com/YiShu5/TO-DO-Panel');
         });
       },
     },
