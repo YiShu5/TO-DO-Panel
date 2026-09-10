@@ -4,7 +4,7 @@ TO-DO Panel 采用与 CC Switch 类似的开源分发方式：源码公开在 Gi
 
 ## 用户安装
 
-1. 从 [GitHub Releases](https://github.com/xiaopu-ai/TO-DO-Panel/releases/latest) 下载 `TO-DO-Panel-*-arm64.dmg`。
+1. 从 [GitHub Releases](https://github.com/YiShu5/TO-DO-Panel/releases/latest) 下载 `TO-DO-Panel-*-arm64.dmg`。
 2. 打开 DMG，将 `TO-DO Panel.app` 拖入“应用程序”。
 3. 首次启动若被 macOS 拦截，打开“系统设置 → 隐私与安全性”，点击“仍要打开”。
 4. 再次启动 TO-DO Panel，并按系统提示授权摄像头和麦克风。
@@ -27,7 +27,7 @@ npm run build
 ## 维护者经 GitHub 发布新版本
 
 > **前置条件**：本地 `main` 已跟踪 GitHub 的 `origin/main`，并已配置可写入
-> `xiaopu-ai/TO-DO-Panel` 的 GitHub 凭据。发布前先确认工作区干净且本地提交已经推送。
+> `YiShu5/TO-DO-Panel` 的 GitHub 凭据。发布前先确认工作区干净且本地提交已经推送。
 
 GitHub Actions 只在推送语义化版本标签时发布安装包。标签必须与 `package.json` 中的版本一致，
 所以先读版本号再打标签，不要照抄示例里的数字：

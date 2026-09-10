@@ -6,7 +6,7 @@ const title = "TO-DO Panel — 把 Mac 刘海变成随手工作台";
 const description = "常驻 macOS 刘海的本地工作台：首页、待办、笔记、链接、录制、密钥与可选剪贴板，数据留在当前 Mac。";
 
 export const metadata: Metadata = {
-  metadataBase: new URL("https://xiaopu-ai.github.io/TO-DO-Panel/"),
+  metadataBase: new URL("https://YiShu5.github.io/TO-DO-Panel/"),
   title,
   description,
   applicationName: "TO-DO Panel",
