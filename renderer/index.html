@@ -244,6 +244,7 @@
                 <div class="command-add-form">
                   <div class="command-add-head">
                     <input class="command-title-add" id="command-title-add" type="text" placeholder="题目（留空让 DeepSeek 自动命名）" maxlength="80" autocomplete="off" />
+                    <button class="command-obsidian" id="command-obsidian" type="button" title="连接笔记库后自动同步；面板删除不会删除 Obsidian 笔记">Obsidian</button>
                     <button class="command-save" id="command-save" type="button" aria-label="保存提示词" title="保存提示词">
                       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
                     </button>
@@ -251,6 +252,7 @@
                   <textarea class="command-add" id="command-add" placeholder="输入提示词内容，⌘/Ctrl + Enter 保存…" maxlength="4000" autocomplete="off" spellcheck="false"></textarea>
                 </div>
                 <div class="command-list" id="command-list"></div>
+                <div class="command-sync-status" id="command-sync-status" role="status" aria-live="polite"></div>
               </section>
 
             </div>

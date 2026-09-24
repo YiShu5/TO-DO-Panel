@@ -60,6 +60,8 @@
   const commandSaveButton = document.getElementById('command-save');
   const commandList = document.getElementById('command-list');
   const commandBulkDelete = document.getElementById('command-bulk-delete');
+  const commandObsidianButton = document.getElementById('command-obsidian');
+  const commandSyncStatus = document.getElementById('command-sync-status');
   let commands = loadJson(COMMANDS_KEY, [])
     .map((item) => Domain.createCommand(
       item && item.text,
@@ -72,8 +74,25 @@
   let commandSelection = new Set();
   let commandSelectionAnchor = null;
 
+  function setCommandSyncStatus(message, error = false) {
+    if (!commandSyncStatus) return;
+    commandSyncStatus.textContent = message || '';
+    commandSyncStatus.dataset.error = error ? 'true' : 'false';
+  }
+
+  async function syncCommandsToObsidian() {
+    if (!window.notchAPI?.syncObsidianPrompts) return;
+    const status = await window.notchAPI.getObsidianStatus?.().catch(() => null);
+    if (!status?.connected) return;
+    const result = await window.notchAPI.syncObsidianPrompts(commands).catch(() => ({ ok: false, error: '同步失败' }));
+    if (result?.ok) {
+      setCommandSyncStatus(result.conflicts?.length ? `已同步 ${result.count} 条，${result.conflicts.length} 条存在 Obsidian 改动` : `已同步到 Obsidian · ${result.count} 条`);
+    } else setCommandSyncStatus(result?.error || '同步失败', true);
+  }
+
   function persistCommands() {
     saveJson(COMMANDS_KEY, commands);
+    void syncCommandsToObsidian();
   }
 
   function renderCommands() {
@@ -103,8 +122,8 @@
       const titleButton = document.createElement('button');
       titleButton.className = 'command-title';
       titleButton.type = 'button';
-      titleButton.dataset.action = 'edit-command';
-      titleButton.title = '点击修改题目和提示词';
+      titleButton.dataset.action = 'open-command';
+      titleButton.title = '打开 Obsidian 中的提示词';
       titleButton.textContent = pendingCommandTitles.has(command.id) ? 'DeepSeek 命名中…' : command.title;
       const textButton = document.createElement('button');
       textButton.className = 'command-text';
@@ -279,6 +298,11 @@
       const action = event.target.closest('[data-action]');
       if (!action) return;
       if (action.dataset.action === 'edit-command') editCommand(row);
+      if (action.dataset.action === 'open-command' && window.notchAPI?.openObsidianPrompt) {
+        const result = await window.notchAPI.openObsidianPrompt(command).catch(() => ({ ok: false, error: '打开失败' }));
+        if (!result?.ok) setCommandSyncStatus(result?.error || '请先连接 Obsidian', true);
+        else setCommandSyncStatus('已在 Obsidian 打开');
+      }
       if (action.dataset.action === 'delete-command') {
         commands = commands.filter((item) => item.id !== command.id);
         commandSelection.delete(command.id);
@@ -301,6 +325,15 @@
     commandSelectionAnchor = null;
     persistCommands();
     renderCommands();
+  });
+  commandObsidianButton?.addEventListener('click', async () => {
+    if (!window.notchAPI?.connectObsidian) return;
+    commandObsidianButton.disabled = true;
+    const result = await window.notchAPI.connectObsidian().catch(() => ({ ok: false, error: '连接失败' }));
+    commandObsidianButton.disabled = false;
+    if (!result?.ok) { setCommandSyncStatus(result?.error || '连接失败', true); return; }
+    commandObsidianButton.textContent = '已连接 Obsidian';
+    await syncCommandsToObsidian();
   });
 
   // ============ 链接收藏夹 ============
@@ -2725,6 +2758,7 @@
   });
 
   renderCommands();
+  void syncCommandsToObsidian();
   renderLinkGroups();
   renderRecordings();
   renderWindows();

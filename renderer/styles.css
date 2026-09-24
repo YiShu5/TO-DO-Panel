@@ -2421,6 +2421,10 @@ body {
 .recording-transcript-editor:focus { border-color: var(--hairline); background: var(--surface-3); }
 
 .command-list { display: flex; flex-direction: column; gap: 5px; }
+.command-obsidian { margin-left: auto; flex-shrink: 0; padding: 3px 6px; border: 1px solid var(--hairline); border-radius: 6px; background: var(--surface-2); color: var(--text-2); font: inherit; font-size: 10px; cursor: pointer; }
+.command-sync-status { flex-shrink: 0; color: var(--text-3); font-size: 10px; line-height: 1.4; overflow-wrap: anywhere; }
+.command-sync-status:empty { display: none; }
+.command-sync-status[data-error='true'] { color: var(--p0); }
 .command-item {
   display: flex;
   align-items: center;

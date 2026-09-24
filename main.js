@@ -23,6 +23,7 @@ const dns = require('dns');
 const zlib = require('zlib');
 const crypto = require('crypto');
 const { execFile } = require('child_process');
+const ObsidianPrompts = require('./obsidian-prompts');
 const {
   isPrivateAddress,
   extractPageTitle,
@@ -1594,6 +1595,48 @@ ipcMain.handle('workspace:save-data', (event, storage) => {
 });
 ipcMain.handle('workspace:open', () => shell.openPath(workspaceRoot()));
 ipcMain.handle('workspace:choose', () => chooseWorkspaceFolder());
+function obsidianConfigPath() { return getJsonSettingsPath('obsidian-prompts.json'); }
+function obsidianStatePath(vault) {
+  const key = crypto.createHash('sha256').update(vault).digest('hex').slice(0, 16);
+  return getJsonSettingsPath(`obsidian-prompts-${key}.json`);
+}
+ipcMain.handle('obsidian:status', () => {
+  const { vault } = readJsonFile(obsidianConfigPath());
+  return { connected: Boolean(vault), vault: vault || '' };
+});
+ipcMain.handle('obsidian:connect', async () => {
+  try {
+    const vaults = ObsidianPrompts.discoverVaults(path.join(app.getPath('appData'), 'obsidian', 'obsidian.json'));
+    let vault = vaults.length === 1 ? vaults[0].path : '';
+    if (!vault) {
+      const selection = await showOwnedOpenDialog({ title: '选择 Obsidian 笔记库', properties: ['openDirectory'] });
+      if (selection.canceled) return { ok: false, error: '已取消连接' };
+      vault = selection.filePaths[0];
+    }
+    if (!vault || !fs.existsSync(path.join(vault, '.obsidian'))) return { ok: false, error: '请选择包含 .obsidian 的笔记库根目录' };
+    vault = fs.realpathSync(vault);
+    if (!writeJsonFile(obsidianConfigPath(), { vault })) throw new Error('无法保存同步设置');
+    return { ok: true, vault };
+  } catch (error) { return { ok: false, error: error.message }; }
+});
+ipcMain.handle('obsidian:sync', (event, commands) => {
+  try {
+    const { vault } = readJsonFile(obsidianConfigPath());
+    if (!vault) return { ok: false, error: '请先连接 Obsidian' };
+    return ObsidianPrompts.syncPrompts(vault, commands, obsidianStatePath(vault));
+  } catch (error) { return { ok: false, error: error.message }; }
+});
+ipcMain.handle('obsidian:open', async (event, command) => {
+  try {
+    const { vault } = readJsonFile(obsidianConfigPath());
+    if (!vault) return { ok: false, error: '请先连接 Obsidian' };
+    const result = ObsidianPrompts.syncPrompts(vault, [command], obsidianStatePath(vault));
+    const file = result.files[command.id];
+    if (!file) return { ok: false, error: '同名文件已存在且不属于面板，请检查同步目录' };
+    await shell.openExternal(ObsidianPrompts.noteUri(vault, file));
+    return { ...result, file };
+  } catch (error) { return { ok: false, error: error.message }; }
+});
 ipcMain.handle('usage:snapshot', (event, payload) => readCodexUsage(payload && payload.force === true));
 
 function getLayoutMetrics(display) {

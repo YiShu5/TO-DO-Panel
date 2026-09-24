@@ -56,6 +56,10 @@ test('common prompts expose a title field and editable prompt body', () => {
   assert.match(workspaceJs, /DeepSeek 命名中/);
   assert.match(mainJs, /parseSmartCommandMetadata/);
   assert.match(mainJs, /不超过10个汉字/);
+  assert.match(commands, /id="command-obsidian"/);
+  assert.match(workspaceJs, /openObsidianPrompt/);
+  assert.match(workspaceJs, /syncObsidianPrompts/);
+  assert.match(mainJs, /obsidian:connect/);
 });
 
 test('recordings expose in-page API settings and create a live draft while recording', () => {

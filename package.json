@@ -31,6 +31,7 @@
     "files": [
       "main.js",
       "main-services.js",
+      "obsidian-prompts.js",
       "preload.js",
       "renderer/**/*",
       "scripts/codex-notify.js",
