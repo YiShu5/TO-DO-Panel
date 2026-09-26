@@ -17,16 +17,17 @@ contextBridge.exposeInMainWorld('reportAPI', {
   list: ({ type } = {}) => ipcRenderer.invoke('reports:list', { type }),
   weeklySources: ({ weekKey } = {}) => ipcRenderer.invoke('reports:sources', { weekKey }),
   save: (payload = {}) => ipcRenderer.invoke('reports:save', {
+    vault: payload.vault,
     type: payload.type,
     key: payload.key,
     content: payload.content,
     expectedRevision: payload.expectedRevision == null ? null : payload.expectedRevision,
     confirmed: payload.confirmed === true,
   }),
-  copy: ({ type, key, revision, confirmed } = {}) => ipcRenderer.invoke('reports:copy', {
+  copy: ({ type, key, content, confirmed } = {}) => ipcRenderer.invoke('reports:copy', {
     type,
     key,
-    revision,
+    content,
     confirmed: confirmed === true,
   }),
   returnHome: () => ipcRenderer.invoke('reports:return-home'),

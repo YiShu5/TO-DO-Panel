@@ -68,7 +68,8 @@ test('日报周报入口复用主版本并提供 Obsidian 报告桥接', () => {
   assert.match(html, /data-report-type="weekly"/);
   assert.match(appJs, /openReport\(item\.dataset\.reportType\)/);
   assert.match(mainJs, /ipcMain\.handle\('reports:save'/);
-  assert.match(mainJs, /path\.join\(__dirname, 'renderer', 'report\.html'\)/);
+  assert.match(html, /id="report-frame"/);
+  assert.match(mainJs, /reports:show-panel/);
 });
 
 test('recordings expose in-page API settings and create a live draft while recording', () => {

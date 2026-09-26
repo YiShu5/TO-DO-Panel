@@ -214,7 +214,6 @@ const WORKSPACE_SETTINGS_FILE = 'workspace-settings.json';
 const WORKSPACE_DATA_FILE = 'workspace.json';
 const MIRROR_IMAGE_FILE = 'mirror-cover.jpg';
 const REPORT_SETTINGS_FILE = 'report-settings.json';
-const DEFAULT_REPORT_VAULT = '/Users/yishu/黄超的产品/黄超的文字/OB知识/意疏的知识存储';
 const REPORT_ROOT_DIR = '日报周报';
 const workspacePersistenceGate = createWorkspacePersistenceGate();
 const NETEASE_MUSIC_APP = '/Applications/NeteaseMusic.app';
@@ -1181,12 +1180,12 @@ function reportVaultRoot() {
   const connected = String(readJsonFile(getJsonSettingsPath('obsidian-prompts.json')).vault || '').trim();
   return process.env.TODO_PANEL_REPORT_VAULT
     || (configured && path.isAbsolute(configured) ? configured
-      : connected && path.isAbsolute(connected) ? connected : DEFAULT_REPORT_VAULT);
+      : connected && path.isAbsolute(connected) ? connected : '');
 }
 
 function publicReportConfig() {
   const vault = reportVaultRoot();
-  return { vault, root: path.join(vault, REPORT_ROOT_DIR), preview: REPORT_PREVIEW };
+  return { vault, root: vault ? path.join(vault, REPORT_ROOT_DIR) : '', preview: REPORT_PREVIEW };
 }
 
 function saveReportConfig(vault) {
@@ -1243,9 +1242,7 @@ function openReportInPanel(type = 'daily') {
   mainWindow.show();
   mainWindow.focus();
   mainWindow.setTitle(normalizedType === 'weekly' ? '周报 · TO-DO Panel' : '日报 · TO-DO Panel');
-  void mainWindow.loadFile(path.join(__dirname, 'renderer', 'report.html'), {
-    query: { type: normalizedType },
-  });
+  mainWindow.webContents.send('reports:show-panel', normalizedType);
   return true;
 }
 
@@ -1684,22 +1681,13 @@ ipcMain.handle('reports:open-window', (event, type) => {
   if (!isKnownReportSender(event) || event.sender !== (mainWindow && mainWindow.webContents)) return false;
   return openReportInPanel(type);
 });
-ipcMain.handle('reports:return-home', async (event) => {
+ipcMain.handle('reports:return-home', (event) => {
   const owner = reportOwnerFromEvent(event);
   if (!owner || owner !== mainWindow) return false;
   reportPanelActive = false;
   mainWindow.setTitle('TO-DO Panel');
-  try {
-    await mainWindow.loadFile(path.join(__dirname, 'renderer', 'index.html'));
-    if (mainWindow && !mainWindow.isDestroyed()) {
-      mainWindow.show();
-      mainWindow.focus();
-      mainWindow.webContents.send('window:restore-panel');
-    }
-    return true;
-  } catch (error) {
-    return false;
-  }
+  mainWindow.webContents.send('reports:hide-panel');
+  return true;
 });
 ipcMain.handle('reports:get-config', (event) => {
   if (!isKnownReportSender(event)) return { ok: false, error: 'forbidden' };
@@ -1735,6 +1723,7 @@ ipcMain.handle('reports:save', (event, payload) => {
     return { ok: false, error: 'revision_required' };
   }
   const type = reportType(payload.type);
+  if (payload.vault !== reportVaultRoot()) return { ok: false, error: 'vault_changed' };
   const key = reportKey(type, payload.key);
   const content = typeof payload.content === 'string' ? payload.content : '';
   if (!type || !key || !content.trim() || Buffer.byteLength(content, 'utf8') > 1024 * 1024) {
@@ -1777,23 +1766,18 @@ ipcMain.handle('reports:sources', (event, payload) => {
 });
 ipcMain.handle('reports:open-vault', (event) => {
   if (!isKnownReportSender(event)) return { ok: false, error: 'forbidden' };
-  return shell.openPath(reportVaultRoot());
+  const vault = reportVaultRoot();
+  return vault ? shell.openPath(vault) : { ok: false, error: 'invalid_vault' };
 });
 ipcMain.handle('reports:copy', (event, payload) => {
   if (!isKnownReportSender(event) || payload?.confirmed !== true) return { ok: false, error: 'confirmation_required' };
   const type = reportType(payload && payload.type);
   const key = reportKey(type, payload && payload.key);
-  const revision = payload && payload.revision;
-  if (!type || !key || revision == null) return { ok: false, error: 'invalid_report' };
-  const binding = reportCopyBindings.get(`${event.sender.id}:${type}:${key}`);
-  if (!binding || binding.revision !== revision || !binding.content) return { ok: false, error: 'confirmation_required' };
-  const current = reportStore().get(type, key);
-  if (!current || current.ok === false || current.exists !== true
-    || current.revision !== binding.revision || current.content !== binding.content) {
-    return { ok: false, error: 'report_changed' };
-  }
-  clipboard.writeText(binding.content);
-  return { ok: true, revision: binding.revision };
+  const content = payload.content;
+  if (!type || !key || typeof content !== 'string' || !content.trim()
+    || Buffer.byteLength(content, 'utf8') > 1024 * 1024) return { ok: false, error: 'invalid_report' };
+  clipboard.writeText(content);
+  return { ok: true };
 });
 function obsidianConfigPath() { return getJsonSettingsPath('obsidian-prompts.json'); }
 function obsidianStatePath(vault) {

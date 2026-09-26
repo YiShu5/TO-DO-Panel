@@ -147,6 +147,7 @@ function isTextEntryControl(target) {
 }
 
 function syncTextEntryWindowLevel() {
+  if (document.activeElement?.id === 'report-frame') return;
   window.notchAPI?.setTextEntryActive?.(isTextEntryControl(document.activeElement));
 }
 
@@ -844,6 +845,7 @@ let tabBusy = false;
 let pendingTab = null;
 
 async function setActiveTab(name) {
+  hideReportPanel();
   if (!TABS.includes(name)) name = 'home';
   if (tabBusy) {
     pendingTab = name; // 补间中连点：记住最后目标，结束后追赶
@@ -927,6 +929,43 @@ Array.from(document.querySelectorAll('.tab[data-tab]')).forEach((btn) => {
   });
 });
 
+// 报告使用本地内嵌页；首页文档保持存活，录音与番茄钟不因导航中断。
+function hideReportPanel() {
+  const frame = document.getElementById('report-frame');
+  if (!frame || frame.hidden) return;
+  frame.hidden = true;
+  window.notchAPI?.setTextEntryActive?.(false);
+  tabPanels.forEach((p) => { p.inert = p.id !== `tab-${activeTab}`; });
+  void window.reportAPI?.returnHome?.();
+}
+window.PanelReport = {
+  api: window.reportAPI,
+  setTextEntryActive: (active) => window.notchAPI?.setTextEntryActive?.(active),
+};
+window.notchAPI?.onShowReport?.(async (type) => {
+  const frame = document.getElementById('report-frame');
+  if (!frame) return;
+  stopMirror();
+  frame.hidden = false;
+  tabPanels.forEach((p) => { p.inert = true; });
+  if (!frame.getAttribute('src')) frame.src = `report.html?type=${type === 'weekly' ? 'weekly' : 'daily'}`;
+  else if (frame.contentWindow?.ReportPanel) frame.contentWindow.ReportPanel.setType(type);
+  else frame.dataset.pendingType = type;
+});
+document.getElementById('report-frame')?.addEventListener('load', (event) => {
+  const frame = event.currentTarget;
+  if (frame.dataset.pendingType) {
+    frame.contentWindow?.ReportPanel?.setType(frame.dataset.pendingType);
+    delete frame.dataset.pendingType;
+  }
+});
+window.notchAPI?.onHideReport?.(() => {
+  hideReportPanel();
+  void setActiveTab('home');
+});
+document.addEventListener('notch:modechange', (event) => {
+  if (!event.detail.expanded) hideReportPanel();
+});
 // 从主面板内的日报/周报页返回时，恢复首页展开状态。
 window.notchAPI?.onRestorePanel?.(() => setMode(true));
 

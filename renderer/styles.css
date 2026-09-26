@@ -435,6 +435,15 @@ body {
 }
 
 /* 日报/周报入口：沿用顶栏胶囊样式，不增加第二个应用入口。 */
+.report-frame {
+  position: absolute;
+  inset: 48px 0 0;
+  width: 100%;
+  height: calc(100% - 48px);
+  border: 0;
+  z-index: 6;
+  pointer-events: auto;
+}
 .report-launcher {
   position: relative;
   z-index: 8;

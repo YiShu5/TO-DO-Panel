@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta
       http-equiv="Content-Security-Policy"
-      content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; media-src 'self' blob:; connect-src 'none'; object-src 'none'; frame-src 'none'; base-uri 'none'; form-action 'none'"
+      content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; media-src 'self' blob:; connect-src 'none'; object-src 'none'; frame-src 'self'; base-uri 'none'; form-action 'none'"
     />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>TO-DO Panel</title>
@@ -105,6 +105,7 @@
           </div>
 
         </header>
+        <iframe id="report-frame" class="report-frame" title="日报周报" hidden></iframe>
 
         <div class="shortcut-recorder" id="shortcut-recorder" tabindex="-1" hidden>
           <span>按下新的唤出快捷键</span>
