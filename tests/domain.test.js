@@ -724,6 +724,21 @@ test('five-widget layout chooses the largest preference and breaks ties by saved
   assert.equal(layout.variants.windows, 'tall');
 });
 
+test('preferred homepage defaults place commands tall on the left and the other four cards in a 2x2 grid', () => {
+  const order = ['commands', 'usage', 'note', 'mirror', 'pomodoro', 'music', 'windows', 'recorder'];
+  const sizes = {
+    commands: 'large', usage: 'medium', note: 'medium', mirror: 'medium', pomodoro: 'medium',
+    music: 'medium', windows: 'medium', recorder: 'small',
+  };
+  const layout = resolveHomeWidgetLayout(order, sizes, ['music', 'windows', 'recorder'], 12, 4);
+  assertExactHomeCover(layout, ['commands', 'usage', 'note', 'mirror', 'pomodoro']);
+  assert.deepEqual(layout.placements.commands, { column: 0, row: 0, width: 4, height: 4 });
+  assert.deepEqual(layout.placements.usage, { column: 4, row: 0, width: 4, height: 2 });
+  assert.deepEqual(layout.placements.note, { column: 8, row: 0, width: 4, height: 2 });
+  assert.deepEqual(layout.placements.mirror, { column: 4, row: 2, width: 4, height: 2 });
+  assert.deepEqual(layout.placements.pomodoro, { column: 8, row: 2, width: 4, height: 2 });
+});
+
 test('seven visible widgets can honor a resized card while still filling the homepage', () => {
   const order = ['music', 'usage', 'windows', 'recorder', 'mirror', 'note', 'commands', 'pomodoro'];
   const hiddenIds = ['recorder'];

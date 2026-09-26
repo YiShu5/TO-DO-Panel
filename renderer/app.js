@@ -2590,7 +2590,10 @@ const HOME_ORDER_KEY = 'notch-home-order-v3';
 const HOME_SIZES_KEY = 'notch-home-widget-sizes-v2';
 const HOME_HIDDEN_MODULES_KEY = 'notch-home-hidden-modules-v1';
 const HOME_MODULE_REGISTRY = ['music', 'pomodoro', 'recorder', 'windows', 'mirror', 'note', 'commands', 'usage'];
-const HOME_ORDER_DEFAULTS = ['music', 'usage', 'pomodoro', 'windows', 'recorder', 'mirror', 'note', 'commands'];
+// 新安装默认采用首页当前的「常用指令 + 用量 + 随笔记 + 镜子 + 番茄钟」排版。
+// 其他组件仍保留在设置里，可随时打开；已有布局偏好不会被覆盖。
+const HOME_ORDER_DEFAULTS = ['commands', 'usage', 'note', 'mirror', 'pomodoro', 'music', 'windows', 'recorder'];
+const HOME_HIDDEN_DEFAULTS = ['music', 'recorder', 'windows'];
 const HOME_SIZE_DEFAULTS = {
   music: 'medium',
   usage: 'medium',
@@ -2598,8 +2601,8 @@ const HOME_SIZE_DEFAULTS = {
   recorder: 'small',
   mirror: 'medium',
   note: 'medium',
-  commands: 'mini',
-  pomodoro: 'mini',
+  commands: 'large',
+  pomodoro: 'medium',
 };
 const HOME_SIZE_LABELS = { mini: '迷你', small: '小', medium: '中', large: '大' };
 const homeBento = document.getElementById('home-bento');
@@ -2651,7 +2654,7 @@ function loadHomeSizes() {
       JSON.parse(localStorage.getItem(HOME_SIZES_KEY) || 'null'),
       HOME_SIZE_DEFAULTS,
       '',
-      48
+      hiddenHomeModules.length ? Infinity : 48
     );
   } catch (error) {
     return { ...HOME_SIZE_DEFAULTS };
@@ -2661,7 +2664,20 @@ function loadHomeSizes() {
 function loadHiddenHomeModules() {
   try {
     const rawText = localStorage.getItem(HOME_HIDDEN_MODULES_KEY);
-    if (rawText === null) return { hiddenIds: [], needsRepair: false };
+    if (rawText === null) {
+      // 只对真正的新安装应用默认采用截图中的五块首页；
+      // 旧版本已经保存过布局的用户继续保留全部模块，由其已有偏好接管。
+      const hasExistingHomePreferences = [
+        HOME_ORDER_KEY,
+        HOME_SIZES_KEY,
+        'notch-home-layout-v2',
+      ].some((key) => localStorage.getItem(key) !== null);
+      return {
+        hiddenIds: hasExistingHomePreferences ? [] : [...HOME_HIDDEN_DEFAULTS],
+        // Persist before a first resize/reorder saves the other layout keys.
+        needsRepair: !hasExistingHomePreferences,
+      };
+    }
     const parsed = JSON.parse(rawText);
     const hiddenIds = window.NotchDomain.normalizeHiddenHomeModules(parsed, HOME_MODULE_REGISTRY);
     return {
@@ -2674,9 +2690,9 @@ function loadHiddenHomeModules() {
 }
 
 let homeOrder = loadHomeOrder();
-let homeSizes = loadHomeSizes();
 const loadedHomeVisibility = loadHiddenHomeModules();
 let hiddenHomeModules = loadedHomeVisibility.hiddenIds;
+let homeSizes = loadHomeSizes();
 let homeVisibilityPersisted = true;
 let homeLayoutReadOnly = false;
 let homeLayoutMotionGeneration = 0;
@@ -2958,7 +2974,13 @@ function setHomeModuleVisible(moduleId, visible) {
     && window.NotchWorkspace?.isRecordingActive?.()) {
     return { ok: false, changed: false, error: 'recording_active', hiddenIds: current, persisted: homeVisibilityPersisted };
   }
-  const layout = resolveValidatedHomeLayout(next.hiddenIds);
+  // The screenshot default intentionally gives the five visible cards more room.
+  // If a user turns every optional module back on, fit all eight cards to the
+  // 12×4 budget before resolving so wide controls never spill outside a tile.
+  const nextSizes = next.hiddenIds.length === 0
+    ? window.NotchDomain.normalizeHomeWidgetSizes(homeSizes, HOME_SIZE_DEFAULTS, '', 48)
+    : homeSizes;
+  const layout = resolveValidatedHomeLayout(next.hiddenIds, homeOrder, nextSizes);
   const currentLayout = resolveValidatedHomeLayout(current);
   if (!layout || !currentLayout) {
     return { ok: false, changed: false, error: 'layout_invalid', hiddenIds: current, persisted: homeVisibilityPersisted };
@@ -2969,6 +2991,7 @@ function setHomeModuleVisible(moduleId, visible) {
     const changingTile = homeTiles.find((tile) => tile.dataset.homeModule === moduleId);
     if (visible === false && changingTile?.contains(activeElement)) activeElement.blur();
     hiddenHomeModules = next.hiddenIds;
+    homeSizes = nextSizes;
     applyHomeLayout(layout, { reason: 'visibility' });
   } catch (error) {
     hiddenHomeModules = current;
@@ -2976,6 +2999,7 @@ function setHomeModuleVisible(moduleId, visible) {
     return { ok: false, changed: false, error: 'dom_apply_failed', hiddenIds: current, persisted: homeVisibilityPersisted };
   }
   const persisted = saveHiddenHomeModules();
+  if (next.hiddenIds.length === 0) saveHomeLayout();
   const detail = visibilitySnapshot();
   document.dispatchEvent(new CustomEvent('notch:home-modules-changed', { detail }));
   return { ok: true, changed: true, hiddenIds: [...hiddenHomeModules], persisted };

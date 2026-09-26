@@ -5652,10 +5652,10 @@ body {
 .home-bento > .home-pomodoro[data-layout-variant='tall'] > .pomodoro-reset { width: 48px; height: 48px; }
 .home-bento > .home-pomodoro[data-layout-variant='wide'],
 .home-bento > .home-pomodoro[data-layout-variant='full'] {
-  grid-template-columns: minmax(46px, .75fr) minmax(118px, 1.5fr) minmax(46px, .75fr);
+  grid-template-columns: minmax(36px, .75fr) minmax(90px, 1.5fr) minmax(36px, .75fr);
   grid-template-rows: 1fr;
-  gap: 14px;
-  padding: 14px 18px;
+  gap: 8px;
+  padding: 10px 12px;
 }
 .home-bento > .home-pomodoro[data-layout-variant='wide'] > .pomodoro-toggle,
 .home-bento > .home-pomodoro[data-layout-variant='full'] > .pomodoro-toggle { grid-column: 1; grid-row: 1; }
@@ -5671,6 +5671,18 @@ body {
 .home-bento > .home-pomodoro[data-layout-variant='wide'] > .pomodoro-reset,
 .home-bento > .home-pomodoro[data-layout-variant='full'] > .pomodoro-toggle,
 .home-bento > .home-pomodoro[data-layout-variant='full'] > .pomodoro-reset { width: 46px; height: 46px; }
+
+/* 在窄窗口里保留三列语义，但缩小时间数字，避免中列压到播放键。 */
+@media (max-width: 1300px) {
+  .home-bento > .home-pomodoro[data-layout-variant='wide'] .pomodoro-dial input,
+  .home-bento > .home-pomodoro[data-layout-variant='wide'] .pomodoro-dial span,
+  .home-bento > .home-pomodoro[data-layout-variant='full'] .pomodoro-dial input,
+  .home-bento > .home-pomodoro[data-layout-variant='full'] .pomodoro-dial span { font-size: 32px; }
+  .home-bento > .home-pomodoro[data-layout-variant='wide'] .pomodoro-status,
+  .home-bento > .home-pomodoro[data-layout-variant='full'] .pomodoro-status { font-size: 9px; }
+  .home-bento > .home-pomodoro[data-layout-variant='wide'] .pomodoro-caption,
+  .home-bento > .home-pomodoro[data-layout-variant='full'] .pomodoro-caption { font-size: 10px; }
+}
 
 /* 录音、列表、笔记和镜子都在容器内部消化增量空间。 */
 .home-bento > .home-recorder[data-layout-variant] { position: relative; display: flex; flex-direction: column; padding-bottom: 52px; }

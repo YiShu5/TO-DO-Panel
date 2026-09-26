@@ -122,6 +122,14 @@ test('hidden visual widgets stop presentation-only background work', () => {
   assert.match(workspaceJs, /NotchHome\?\.isVisible/);
 });
 
+test('homepage defaults to the preferred five-card arrangement without overwriting saved layouts', () => {
+  assert.match(appJs, /const HOME_ORDER_DEFAULTS = \['commands', 'usage', 'note', 'mirror', 'pomodoro', 'music', 'windows', 'recorder'\]/);
+  assert.match(appJs, /const HOME_HIDDEN_DEFAULTS = \['music', 'recorder', 'windows'\]/);
+  assert.match(appJs, /commands: 'large'/);
+  assert.match(appJs, /pomodoro: 'medium'/);
+  assert.match(appJs, /hasExistingHomePreferences/);
+});
+
 test('Netease Music card renders synchronized title, artist, controls and ambient motion without artwork', () => {
   assert.doesNotMatch(html, /id="music-artwork"/);
   assert.match(html, /class="music-ambient"/);
