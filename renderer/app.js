@@ -927,6 +927,35 @@ Array.from(document.querySelectorAll('.tab[data-tab]')).forEach((btn) => {
   });
 });
 
+// 从主面板内的日报/周报页返回时，恢复首页展开状态。
+window.notchAPI?.onRestorePanel?.(() => setMode(true));
+
+const reportLauncher = document.getElementById('report-launcher');
+const reportLauncherButton = document.getElementById('report-launcher-button');
+const reportLauncherMenu = document.getElementById('report-launcher-menu');
+const reportLauncherTopbar = reportLauncher?.closest('.topbar');
+function setReportLauncherOpen(open) {
+  if (!reportLauncherMenu || !reportLauncherButton) return;
+  reportLauncherMenu.hidden = !open;
+  reportLauncherButton.setAttribute('aria-expanded', String(open));
+  reportLauncherTopbar?.classList.toggle('report-menu-open', open);
+}
+function closeReportLauncher() { setReportLauncherOpen(false); }
+reportLauncherButton?.addEventListener('click', (event) => {
+  event.stopPropagation();
+  setReportLauncherOpen(reportLauncherMenu?.hidden !== false);
+});
+reportLauncherMenu?.addEventListener('click', (event) => {
+  event.stopPropagation();
+  const item = event.target.closest('[data-report-type]');
+  if (!item || !window.notchAPI?.openReport) return;
+  closeReportLauncher();
+  window.notchAPI.openReport(item.dataset.reportType).catch(() => showStatusToast('日报窗口暂时无法打开'));
+});
+document.addEventListener('click', (event) => {
+  if (reportLauncher && !reportLauncher.contains(event.target)) closeReportLauncher();
+});
+
 // 托盘里的“设置快捷键…”会把设置入口以内联浮层放到面板中。
 // 这里绑定所有 Tab（包括启动时隐藏的剪贴板），避免功能启用后按钮仍没有事件。
 const shortcutRecorder = document.getElementById('shortcut-recorder');

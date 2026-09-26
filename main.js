@@ -23,6 +23,7 @@ const dns = require('dns');
 const zlib = require('zlib');
 const crypto = require('crypto');
 const { execFile } = require('child_process');
+const { createReportStore } = require('./report-store');
 const ObsidianPrompts = require('./obsidian-prompts');
 const {
   isPrivateAddress,
@@ -58,8 +59,9 @@ const {
 // Keep the historical data directory so upgrading users retain notes, links,
 // recordings and encrypted settings after the public product rename.
 const LEGACY_USER_DATA_PATH = path.join(app.getPath('appData'), 'Dynamic Panel');
-app.setName('TO-DO Panel');
-app.setPath('userData', LEGACY_USER_DATA_PATH);
+const REPORT_PREVIEW = process.env.TODO_PANEL_REPORT_PREVIEW === '1';
+app.setName(REPORT_PREVIEW ? 'TO-DO Panel Reports Preview' : 'TO-DO Panel');
+app.setPath('userData', process.env.TODO_PANEL_USER_DATA || LEGACY_USER_DATA_PATH);
 
 // ============ 托盘图标 PNG 生成 ============
 // 直接在主进程编码 PNG，避免引入额外资源文件
@@ -211,6 +213,9 @@ const APP_SETTINGS_FILE = 'app-settings.json';
 const WORKSPACE_SETTINGS_FILE = 'workspace-settings.json';
 const WORKSPACE_DATA_FILE = 'workspace.json';
 const MIRROR_IMAGE_FILE = 'mirror-cover.jpg';
+const REPORT_SETTINGS_FILE = 'report-settings.json';
+const DEFAULT_REPORT_VAULT = '/Users/yishu/黄超的产品/黄超的文字/OB知识/意疏的知识存储';
+const REPORT_ROOT_DIR = '日报周报';
 const workspacePersistenceGate = createWorkspacePersistenceGate();
 const NETEASE_MUSIC_APP = '/Applications/NeteaseMusic.app';
 const NETEASE_HISTORY_DATABASE = path.join(
@@ -264,6 +269,9 @@ let transientSystemInteractionRequests = 0;
 let cameraBlurDeferred = false;
 let neteaseMusicPlaying = false;
 let textEntryActive = false;
+let reportPanelActive = false;
+const reportWindows = new Map();
+const reportCopyBindings = new Map();
 
 let notificationWindow = null;
 let notificationWindowReady = false;
@@ -1039,6 +1047,7 @@ function createWindow() {
 
   // 失焦时让渲染层走完整退场动画，再由渲染层请求缩小原生窗口。
   mainWindow.on('blur', () => {
+    if (reportPanelActive) return;
     if (mediaPermissionRequests > 0 || transientSystemInteractionRequests > 0) {
       cameraBlurDeferred = true;
       return;
@@ -1062,6 +1071,7 @@ function createWindow() {
   mainWindow.on('closed', () => {
     cancelCollapseWatchdog();
     hideWhenCollapsed = false;
+    reportPanelActive = false;
     mainWindow = null;
   });
 
@@ -1162,6 +1172,81 @@ function workspaceRoot() {
   const settings = readJsonFile(getJsonSettingsPath(WORKSPACE_SETTINGS_FILE));
   const configured = String(settings.path || '').trim();
   return configured && path.isAbsolute(configured) ? configured : app.getPath('userData');
+}
+
+// ============ 日报 / 周报 · Obsidian 本地存储 ============
+function reportVaultRoot() {
+  const settings = readJsonFile(getJsonSettingsPath(REPORT_SETTINGS_FILE));
+  const configured = String(settings.path || '').trim();
+  const connected = String(readJsonFile(getJsonSettingsPath('obsidian-prompts.json')).vault || '').trim();
+  return process.env.TODO_PANEL_REPORT_VAULT
+    || (configured && path.isAbsolute(configured) ? configured
+      : connected && path.isAbsolute(connected) ? connected : DEFAULT_REPORT_VAULT);
+}
+
+function publicReportConfig() {
+  const vault = reportVaultRoot();
+  return { vault, root: path.join(vault, REPORT_ROOT_DIR), preview: REPORT_PREVIEW };
+}
+
+function saveReportConfig(vault) {
+  const normalized = String(vault || '').trim();
+  if (!normalized || !path.isAbsolute(normalized)) return false;
+  try {
+    const stat = fs.statSync(normalized);
+    const obsidian = fs.statSync(path.join(normalized, '.obsidian'));
+    if (!stat.isDirectory() || !obsidian.isDirectory()) return false;
+  } catch (error) {
+    return false;
+  }
+  return writeJsonFile(getJsonSettingsPath(REPORT_SETTINGS_FILE), { path: normalized });
+}
+
+function reportStore() {
+  return createReportStore(reportVaultRoot());
+}
+
+function reportType(type) {
+  return type === 'weekly' ? 'weekly' : type === 'daily' ? 'daily' : '';
+}
+
+function reportKey(type, key) {
+  const normalizedType = reportType(type);
+  const value = String(key || '').trim();
+  if (!normalizedType) return '';
+  const pattern = normalizedType === 'weekly' ? /^\d{4}-W\d{2}$/ : /^\d{4}-\d{2}-\d{2}$/;
+  return pattern.test(value) ? value : '';
+}
+
+function isKnownReportSender(event) {
+  const sender = event && event.sender;
+  if (!sender || sender.isDestroyed()) return false;
+  if (mainWindow && !mainWindow.isDestroyed() && sender === mainWindow.webContents) return true;
+  for (const window of reportWindows.values()) {
+    if (window && !window.isDestroyed() && sender === window.webContents) return true;
+  }
+  return false;
+}
+
+function reportOwnerFromEvent(event) {
+  if (!isKnownReportSender(event)) return null;
+  return BrowserWindow.fromWebContents(event.sender);
+}
+
+// 日报/周报直接复用主窗口，避免安装两个应用后产生两份入口和状态。
+function openReportInPanel(type = 'daily') {
+  if (!mainWindow || mainWindow.isDestroyed()) return false;
+  const normalizedType = reportType(type);
+  if (!normalizedType) return false;
+  reportPanelActive = true;
+  if (currentMode !== 'expanded') applyMode('expanded');
+  mainWindow.show();
+  mainWindow.focus();
+  mainWindow.setTitle(normalizedType === 'weekly' ? '周报 · TO-DO Panel' : '日报 · TO-DO Panel');
+  void mainWindow.loadFile(path.join(__dirname, 'renderer', 'report.html'), {
+    query: { type: normalizedType },
+  });
+  return true;
 }
 
 function workspacePath(name) {
@@ -1595,6 +1680,121 @@ ipcMain.handle('workspace:save-data', (event, storage) => {
 });
 ipcMain.handle('workspace:open', () => shell.openPath(workspaceRoot()));
 ipcMain.handle('workspace:choose', () => chooseWorkspaceFolder());
+ipcMain.handle('reports:open-window', (event, type) => {
+  if (!isKnownReportSender(event) || event.sender !== (mainWindow && mainWindow.webContents)) return false;
+  return openReportInPanel(type);
+});
+ipcMain.handle('reports:return-home', async (event) => {
+  const owner = reportOwnerFromEvent(event);
+  if (!owner || owner !== mainWindow) return false;
+  reportPanelActive = false;
+  mainWindow.setTitle('TO-DO Panel');
+  try {
+    await mainWindow.loadFile(path.join(__dirname, 'renderer', 'index.html'));
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.show();
+      mainWindow.focus();
+      mainWindow.webContents.send('window:restore-panel');
+    }
+    return true;
+  } catch (error) {
+    return false;
+  }
+});
+ipcMain.handle('reports:get-config', (event) => {
+  if (!isKnownReportSender(event)) return { ok: false, error: 'forbidden' };
+  return publicReportConfig();
+});
+ipcMain.handle('reports:set-vault', (event, vault) => {
+  if (!isKnownReportSender(event) || !saveReportConfig(vault)) return { ok: false, error: 'invalid_vault' };
+  return { ok: true, ...publicReportConfig() };
+});
+ipcMain.handle('reports:choose-vault', async (event) => {
+  const owner = reportOwnerFromEvent(event);
+  if (!owner) return { ok: false, error: 'forbidden' };
+  const result = await runOwnedOpenDialog(
+    dialog.showOpenDialog.bind(dialog),
+    owner,
+    { title: '选择 Obsidian 知识库文件夹', properties: ['openDirectory', 'createDirectory'] },
+    (delta) => {
+      transientSystemInteractionRequests = Math.max(0, transientSystemInteractionRequests + delta);
+      if (delta < 0 && transientSystemInteractionRequests === 0 && mediaPermissionRequests === 0) {
+        cameraBlurDeferred = false;
+      }
+    },
+  );
+  const selected = !result.canceled && result.filePaths && result.filePaths[0];
+  if (!selected) return { ok: false, canceled: true };
+  if (!saveReportConfig(selected)) return { ok: false, error: 'invalid_vault' };
+  return { ok: true, ...publicReportConfig() };
+});
+ipcMain.handle('reports:save', (event, payload) => {
+  if (!isKnownReportSender(event)) return { ok: false, error: 'forbidden' };
+  if (!payload || payload.confirmed !== true) return { ok: false, error: 'confirmation_required' };
+  if (!Object.prototype.hasOwnProperty.call(payload, 'expectedRevision')) {
+    return { ok: false, error: 'revision_required' };
+  }
+  const type = reportType(payload.type);
+  const key = reportKey(type, payload.key);
+  const content = typeof payload.content === 'string' ? payload.content : '';
+  if (!type || !key || !content.trim() || Buffer.byteLength(content, 'utf8') > 1024 * 1024) {
+    return { ok: false, error: 'invalid_report' };
+  }
+  const result = reportStore().save({
+    type,
+    key,
+    content,
+    expectedRevision: payload.expectedRevision == null ? null : payload.expectedRevision,
+    confirmed: true,
+  });
+  if (result && result.ok) {
+    reportCopyBindings.set(`${event.sender.id}:${type}:${key}`, {
+      revision: result.revision == null ? null : result.revision,
+      content,
+    });
+  }
+  return result;
+});
+ipcMain.handle('reports:get', (event, payload) => {
+  if (!isKnownReportSender(event)) return { ok: false, error: 'forbidden' };
+  const type = reportType(payload && payload.type);
+  const key = reportKey(type, payload && payload.key);
+  if (!type || !key) return { ok: false, error: 'invalid_report' };
+  const version = payload && payload.version == null ? null : payload.version;
+  return reportStore().get(type, key, version);
+});
+ipcMain.handle('reports:list', (event, payload) => {
+  if (!isKnownReportSender(event)) return { ok: false, error: 'forbidden' };
+  const type = reportType(payload && payload.type);
+  if (!type) return { ok: false, error: 'invalid_report' };
+  return reportStore().list(type);
+});
+ipcMain.handle('reports:sources', (event, payload) => {
+  if (!isKnownReportSender(event)) return { ok: false, error: 'forbidden' };
+  const weekKey = String(payload && payload.weekKey || '').trim();
+  if (!/^\d{4}-W\d{2}$/.test(weekKey)) return { ok: false, error: 'invalid_week' };
+  return reportStore().weeklySources(weekKey);
+});
+ipcMain.handle('reports:open-vault', (event) => {
+  if (!isKnownReportSender(event)) return { ok: false, error: 'forbidden' };
+  return shell.openPath(reportVaultRoot());
+});
+ipcMain.handle('reports:copy', (event, payload) => {
+  if (!isKnownReportSender(event) || payload?.confirmed !== true) return { ok: false, error: 'confirmation_required' };
+  const type = reportType(payload && payload.type);
+  const key = reportKey(type, payload && payload.key);
+  const revision = payload && payload.revision;
+  if (!type || !key || revision == null) return { ok: false, error: 'invalid_report' };
+  const binding = reportCopyBindings.get(`${event.sender.id}:${type}:${key}`);
+  if (!binding || binding.revision !== revision || !binding.content) return { ok: false, error: 'confirmation_required' };
+  const current = reportStore().get(type, key);
+  if (!current || current.ok === false || current.exists !== true
+    || current.revision !== binding.revision || current.content !== binding.content) {
+    return { ok: false, error: 'report_changed' };
+  }
+  clipboard.writeText(binding.content);
+  return { ok: true, revision: binding.revision };
+});
 function obsidianConfigPath() { return getJsonSettingsPath('obsidian-prompts.json'); }
 function obsidianStatePath(vault) {
   const key = crypto.createHash('sha256').update(vault).digest('hex').slice(0, 16);
@@ -3718,4 +3918,9 @@ app.on('will-quit', () => {
   closeAllTranscriptionSessions();
   globalShortcut.unregisterAll();
   stopClipboardPolling();
+  reportWindows.forEach((window) => {
+    try { if (!window.isDestroyed()) window.destroy(); } catch (error) {}
+  });
+  reportWindows.clear();
+  reportCopyBindings.clear();
 });

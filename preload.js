@@ -12,6 +12,8 @@ contextBridge.exposeInMainWorld('notchAPI', {
   beginCollapse: () => ipcRenderer.invoke('window:begin-collapse'),
   setTextEntryActive: (active) => ipcRenderer.send('window:text-entry-active', active === true),
   setTab: (tab) => ipcRenderer.invoke('window:set-tab', tab),
+  openReport: (type) => ipcRenderer.invoke('reports:open-window', type),
+  onRestorePanel: (cb) => subscribe('window:restore-panel', () => cb()),
   ensureCamera: () => ipcRenderer.invoke('media:camera'),
   ensureMicrophone: () => ipcRenderer.invoke('media:microphone'),
   openExternal: (url) => ipcRenderer.invoke('shell:openExternal', url),
@@ -92,4 +94,28 @@ contextBridge.exposeInMainWorld('notchAPI', {
     ipcRenderer.invoke('task-notification:activate', eventId),
   taskNotificationHover: (paused) =>
     ipcRenderer.send('task-notification:hover', paused === true),
+});
+
+contextBridge.exposeInMainWorld('reportAPI', {
+  getConfig: () => ipcRenderer.invoke('reports:get-config'),
+  chooseVault: () => ipcRenderer.invoke('reports:choose-vault'),
+  openVault: () => ipcRenderer.invoke('reports:open-vault'),
+  get: ({ type, key, version } = {}) => ipcRenderer.invoke('reports:get', { type, key, version }),
+  list: ({ type } = {}) => ipcRenderer.invoke('reports:list', { type }),
+  weeklySources: ({ weekKey } = {}) => ipcRenderer.invoke('reports:sources', { weekKey }),
+  save: (payload = {}) => ipcRenderer.invoke('reports:save', {
+    type: payload.type,
+    key: payload.key,
+    content: payload.content,
+    expectedRevision: payload.expectedRevision == null ? null : payload.expectedRevision,
+    confirmed: payload.confirmed === true,
+  }),
+  copy: ({ type, key, revision, confirmed } = {}) => ipcRenderer.invoke('reports:copy', {
+    type,
+    key,
+    revision,
+    confirmed: confirmed === true,
+  }),
+  returnHome: () => ipcRenderer.invoke('reports:return-home'),
+  onFocusType: (callback) => subscribe('reports:focus-type', callback),
 });

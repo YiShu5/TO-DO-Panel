@@ -62,6 +62,15 @@ test('common prompts expose a title field and editable prompt body', () => {
   assert.match(mainJs, /obsidian:connect/);
 });
 
+test('日报周报入口复用主版本并提供 Obsidian 报告桥接', () => {
+  assert.match(html, /id="report-launcher"/);
+  assert.match(html, /data-report-type="daily"/);
+  assert.match(html, /data-report-type="weekly"/);
+  assert.match(appJs, /openReport\(item\.dataset\.reportType\)/);
+  assert.match(mainJs, /ipcMain\.handle\('reports:save'/);
+  assert.match(mainJs, /path\.join\(__dirname, 'renderer', 'report\.html'\)/);
+});
+
 test('recordings expose in-page API settings and create a live draft while recording', () => {
   assert.match(html, /id="recording-configure"/);
   assert.match(workspaceJs, /function beginRecordingDraft\(\)/);

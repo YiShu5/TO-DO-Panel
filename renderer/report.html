@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'none'; object-src 'none'; base-uri 'self'; form-action 'none'"
+    />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>日报 · TO-DO Panel</title>
+    <link rel="stylesheet" href="report.css" />
+  </head>
+  <body>
+    <main class="report-shell">
+      <header class="report-header">
+        <div>
+          <p class="report-eyebrow">TO-DO PANEL · PERSONAL LOG</p>
+          <h1 id="report-title">日报</h1>
+          <p class="report-subtitle">写完、看一眼，再保存到你的 Obsidian 知识库。</p>
+        </div>
+        <div class="report-header-actions">
+          <button class="quiet-button" id="back-to-panel" type="button">返回首页</button>
+          <button class="quiet-button" id="open-vault" type="button">打开 Obsidian 文件夹</button>
+          <button class="quiet-button" id="choose-vault" type="button">更换知识库</button>
+        </div>
+      </header>
+
+      <nav class="report-switcher" aria-label="报告类型">
+        <button type="button" data-report-switcher data-report-type="daily">日报</button>
+        <button type="button" data-report-switcher data-report-type="weekly">周报</button>
+      </nav>
+
+      <div class="report-layout">
+        <section class="report-editor" aria-labelledby="editor-title">
+          <div class="section-heading">
+            <div>
+              <span class="section-kicker" id="editor-title">先写原始记录</span>
+              <strong id="period-label">今天</strong>
+            </div>
+            <label class="period-control" id="daily-period">
+              <span>日期</span>
+              <input id="daily-date" type="date" />
+            </label>
+            <label class="period-control" id="weekly-period" hidden>
+              <span>周次</span>
+              <input id="weekly-date" type="week" />
+            </label>
+          </div>
+
+          <label class="field-label" for="work-input" id="work-label">今天做了什么？</label>
+          <textarea id="work-input" class="report-input" placeholder="一行写一件事。明确完成的事项前面写 ✅，正在推进的写 🚶。"></textarea>
+
+          <label class="field-label" for="plan-input" id="plan-label">明天准备做什么？</label>
+          <textarea id="plan-input" class="report-input report-plan-input" placeholder="一行写一项计划，保存时会自动整理成 1、2、3、"></textarea>
+
+          <p class="editor-note">只做格式整理，不替你补事实；没有明确完成的内容会保留为 🚶。</p>
+          <div class="editor-actions">
+            <button class="primary-button" id="save-report" type="button">保存到 Obsidian</button>
+            <button class="secondary-button" id="copy-report" type="button">复制正文</button>
+          </div>
+          <p class="save-status" id="save-status" role="status" aria-live="polite"></p>
+        </section>
+
+        <section class="report-preview" aria-labelledby="preview-title">
+          <div class="section-heading preview-heading">
+            <div>
+              <span class="section-kicker">确认后再保存</span>
+              <strong id="preview-title">正文预览</strong>
+            </div>
+            <span class="plain-text-badge">纯文本</span>
+          </div>
+          <textarea id="preview-input" class="preview-input" aria-label="报告正文预览"></textarea>
+          <p class="preview-note">可以直接在这里微调，保存和复制都会以这份正文为准。</p>
+        </section>
+      </div>
+
+      <section class="history-panel" aria-labelledby="history-title">
+        <div class="history-heading">
+          <div>
+            <span class="section-kicker">Obsidian 历史</span>
+            <strong id="history-title">已保存版本</strong>
+          </div>
+          <span class="vault-path" id="vault-path">读取中…</span>
+        </div>
+        <div class="history-list" id="history-list"><p class="empty-history">还没有保存记录。</p></div>
+      </section>
+    </main>
+    <div class="toast" id="toast" role="status" aria-live="polite" aria-hidden="true"></div>
+    <script src="report-format.js"></script>
+    <script src="report.js"></script>
+  </body>
+</html>

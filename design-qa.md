@@ -51,3 +51,15 @@
 ## Final result
 
 passed
+
+## 日报/周报合并验收
+
+- 主版本首页顶栏出现“日报周报”入口，菜单包含“日报”和“周报”。
+- 日报页可从主窗口打开，日期、原始记录、正文预览、Obsidian 路径和历史版本均可见。
+- 周报切换可用，并能读取本周日报工作项；返回首页后主面板恢复正常渲染和展开状态。
+- 报告存储使用独立的 `日报周报/日报` 与 `日报周报/周报` 路径，保存前校验版本，外部改动不会静默覆盖。
+- 已安装并验收合并后的 `/Applications/TO-DO Panel.app`；旧 `/Applications/TO-DO Panel 日报版.app` 已移入废纸篓，`Dynamic Panel Reports` 数据目录保留。
+
+## Report result
+
+passed

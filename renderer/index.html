@@ -64,6 +64,23 @@
               </svg>
               <span class="tab-label">链接</span>
             </button>
+            <div class="report-launcher" id="report-launcher">
+              <button class="report-launcher-button" id="report-launcher-button" type="button" aria-haspopup="menu" aria-expanded="false" aria-controls="report-launcher-menu">
+                <span class="report-launcher-mark" aria-hidden="true">✦</span>
+                <span class="tab-label">日报周报</span>
+                <span class="report-launcher-chevron" aria-hidden="true">⌄</span>
+              </button>
+              <div class="report-launcher-menu" id="report-launcher-menu" role="menu" hidden>
+                <button type="button" role="menuitem" data-report-type="daily">
+                  <span><b>日报</b><small>记录今天，保存到 Obsidian</small></span>
+                  <span aria-hidden="true">↗</span>
+                </button>
+                <button type="button" role="menuitem" data-report-type="weekly">
+                  <span><b>周报</b><small>回看本周，整理下周计划</small></span>
+                  <span aria-hidden="true">↗</span>
+                </button>
+              </div>
+            </div>
             <button class="tab" id="tab-button-recordings" type="button" data-tab="recordings" role="tab" aria-controls="tab-recordings" aria-selected="false" tabindex="-1">
               <svg class="tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                 <rect x="8" y="3" width="8" height="13" rx="4" />

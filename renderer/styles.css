@@ -434,6 +434,72 @@ body {
   flex-shrink: 0;
 }
 
+/* 日报/周报入口：沿用顶栏胶囊样式，不增加第二个应用入口。 */
+.report-launcher {
+  position: relative;
+  z-index: 8;
+  flex: 0 0 auto;
+  pointer-events: auto;
+}
+.panel > .topbar.report-menu-open { z-index: 8; }
+.report-launcher-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 29px;
+  padding: 0 9px;
+  border: 1px solid rgba(255, 214, 92, .18);
+  border-radius: 999px;
+  background: linear-gradient(180deg, rgba(255, 214, 92, .12), rgba(255, 214, 92, .045));
+  color: var(--text-2);
+  font: 500 11px var(--font);
+  cursor: pointer;
+  transition: color 140ms var(--ease), border-color 140ms var(--ease), background 140ms var(--ease), transform 90ms var(--ease-out);
+}
+.report-launcher-button:hover,
+.report-launcher-button[aria-expanded='true'] {
+  color: #fff3bf;
+  border-color: rgba(255, 214, 92, .42);
+  background: linear-gradient(180deg, rgba(255, 214, 92, .18), rgba(255, 214, 92, .07));
+}
+.report-launcher-button:active { transform: scale(.95); }
+.report-launcher-mark { color: #ffd65c; font-size: 12px; line-height: 1; }
+.report-launcher-chevron { color: var(--text-4); font-size: 13px; line-height: 1; transform: translateY(-1px); }
+.report-launcher-menu {
+  position: absolute;
+  top: calc(100% + 7px);
+  left: 0;
+  z-index: 20;
+  display: grid;
+  width: 214px;
+  padding: 6px;
+  gap: 3px;
+  border: 1px solid rgba(255, 214, 92, .2);
+  border-radius: 14px;
+  background: rgba(19, 18, 15, .96);
+  box-shadow: 0 18px 38px rgba(0, 0, 0, .42), inset 0 1px 0 rgba(255,255,255,.06);
+  backdrop-filter: blur(18px);
+}
+.report-launcher-menu[hidden] { display: none; }
+.report-launcher-menu button {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  width: 100%;
+  padding: 9px 10px;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--text-2);
+  text-align: left;
+  cursor: pointer;
+}
+.report-launcher-menu button:hover { background: rgba(255, 214, 92, .1); color: var(--text-1); }
+.report-launcher-menu b { display: block; color: inherit; font-size: 12px; font-weight: 650; }
+.report-launcher-menu small { display: block; margin-top: 2px; color: var(--text-4); font-size: 9px; }
+.report-launcher-menu button > span:last-child { color: #ffd65c; font-size: 13px; }
+
 .tab-indicator {
   position: absolute;
   top: 3px;
@@ -3919,6 +3985,7 @@ body {
   background: rgba(255,255,255,.035);
   pointer-events: auto;
 }
+.tabs.is-split .report-launcher { pointer-events: auto; }
 .tabs .tab[data-tab='links'] { margin-right: 0; }
 .tabs.is-split .tab-split-start { margin-left: auto; }
 .topbar-mid { position:absolute; inset:4px 8px auto auto; z-index:6; }
