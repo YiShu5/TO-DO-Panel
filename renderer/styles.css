@@ -6509,3 +6509,497 @@ html[data-theme='light'] #tab-todo .todo-deadline-trigger {
   flex: 0 0 auto;
   margin-top: auto;
 }
+
+/* ========================================================================== *
+   Workbench visual refresh · 2026-09
+
+   This is intentionally a final, small component layer. The panel has grown
+   several generations of visual rules over time; keeping this layer together
+   lets the existing interaction/layout code remain stable while giving every
+   surface one visual language. The direction is a quiet workbench: paper/ink
+   surfaces, one teal action colour, and amber only for time-sensitive state.
+   ========================================================================== */
+
+:root {
+  --bg-base: #0e171a;
+  --surface-1: #152328;
+  --surface-2: #1b2c31;
+  --surface-3: #24383d;
+  --hairline: rgba(185, 221, 220, .16);
+  --hairline-soft: rgba(185, 221, 220, .10);
+  --highlight-top: rgba(255, 255, 255, .06);
+  --tile-highlight: rgba(255, 255, 255, .03);
+  --text-1: #edf7f5;
+  --text-2: #b2c6c7;
+  --text-3: #80999c;
+  --text-4: #5f777b;
+  --focus-ring: #72d1c7;
+  --scrollbar-thumb: rgba(188, 225, 224, .20);
+  --scrollbar-thumb-hover: rgba(188, 225, 224, .38);
+  --panel-shadow: rgba(0, 8, 11, .44);
+  --item-hover: rgba(116, 207, 198, .08);
+  --accent-green: #65c6a8;
+  --accent-teal: #55c1ba;
+  --accent-orange: #e6b15b;
+  --accent-blue: #88b7e8;
+  --p0: #d77972;
+  --p1: #e2a85a;
+  --p2: #64c1b0;
+  --p3: #86aeda;
+  --r-panel: 20px;
+  --r-tile: 16px;
+  --r-squircle: 11px;
+  --r-input: 10px;
+  --font: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'PingFang SC', sans-serif;
+  --font-mono: 'SF Mono', ui-monospace, monospace;
+  --fs-micro: 10px;
+  --fs-caption: 11px;
+  --fs-small: 12px;
+  --fs-ui: 13px;
+  --fs-body: 14px;
+  --fs-body-lg: 15px;
+  --fs-heading-3: 16px;
+  --fs-heading-2: 18px;
+  --fs-heading-1: 21px;
+}
+
+html[data-theme='light'] {
+  --bg-base: #f3f7f7;
+  --surface-1: #fffefd;
+  --surface-2: #edf3f3;
+  --surface-3: #e1ecec;
+  --hairline: rgba(24, 69, 74, .16);
+  --hairline-soft: rgba(24, 69, 74, .10);
+  --highlight-top: rgba(255, 255, 255, .92);
+  --tile-highlight: rgba(34, 99, 103, .04);
+  --text-1: #17353b;
+  --text-2: #41666c;
+  --text-3: #6d898e;
+  --text-4: #91a6a9;
+  --focus-ring: #2f9894;
+  --scrollbar-thumb: rgba(42, 108, 111, .22);
+  --scrollbar-thumb-hover: rgba(42, 108, 111, .38);
+  --panel-shadow: rgba(39, 76, 79, .14);
+  --item-hover: rgba(54, 148, 145, .08);
+  --accent-green: #3b927a;
+  --accent-teal: #2f9290;
+  --accent-orange: #c68d32;
+  --accent-blue: #5b82b7;
+  --p0: #c45e59;
+  --p1: #c68d32;
+  --p2: #3f9882;
+  --p3: #5f86bb;
+}
+
+html, body { color: var(--text-1); }
+body { background: transparent; }
+
+#app.expanded .panel::before {
+  background: var(--bg-base);
+  box-shadow: 0 12px 34px var(--panel-shadow);
+}
+
+.panel {
+  padding: 10px 20px 16px;
+}
+
+.topbar {
+  min-height: 40px;
+  padding: 0;
+}
+
+.tabs {
+  gap: 2px;
+  padding: 4px;
+  border: 1px solid var(--hairline-soft);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--surface-1) 88%, transparent);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, .08);
+}
+
+.tab {
+  min-height: 30px;
+  padding: 0 11px;
+  gap: 6px;
+  border-radius: 8px;
+  color: var(--text-3);
+  font-size: 12px;
+  font-weight: 560;
+}
+.tab:hover { color: var(--text-1); background: var(--item-hover); }
+.tab[aria-selected='true'] { color: var(--text-1); }
+.tab-icon { width: 14px; height: 14px; }
+.tab-indicator {
+  top: 4px;
+  height: calc(100% - 8px);
+  border: 1px solid color-mix(in srgb, var(--accent-teal) 30%, transparent);
+  background: color-mix(in srgb, var(--accent-teal) 16%, var(--surface-2));
+  box-shadow: none;
+}
+
+.report-launcher-button {
+  min-height: 30px;
+  padding: 0 10px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text-3);
+  font: 560 12px var(--font);
+}
+.report-launcher-button:hover,
+.report-launcher-button[aria-expanded='true'] {
+  color: var(--text-1);
+  background: var(--item-hover);
+  border-color: var(--hairline-soft);
+}
+.report-launcher-mark,
+.report-launcher-menu button > span:last-child { color: var(--accent-teal); }
+.report-launcher-menu {
+  min-width: 230px;
+  padding: 7px;
+  border: 1px solid var(--hairline);
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--surface-1) 96%, transparent);
+  box-shadow: 0 16px 36px var(--panel-shadow);
+}
+.report-launcher-menu button { padding: 9px 10px; border-radius: 9px; }
+.report-launcher-menu button:hover { background: var(--item-hover); }
+.report-launcher-menu b { font-size: 13px; }
+.report-launcher-menu small { color: var(--text-3); font-size: 11px; }
+
+.collapse-btn,
+.workspace-button,
+.record-control,
+.settings-theme-toggle,
+.windows-refresh,
+.usage-refresh,
+.note-mode,
+.command-save,
+.command-obsidian,
+.todo-deadline-trigger {
+  border: 1px solid var(--hairline-soft);
+  background: var(--surface-2);
+  color: var(--text-2);
+  box-shadow: none;
+}
+.collapse-btn:hover,
+.workspace-button:hover,
+.record-control:hover,
+.settings-theme-toggle:hover,
+.windows-refresh:hover,
+.usage-refresh:hover,
+.note-mode:hover,
+.command-save:hover,
+.command-obsidian:hover,
+.todo-deadline-trigger:hover {
+  border-color: color-mix(in srgb, var(--accent-teal) 50%, var(--hairline));
+  background: var(--surface-3);
+  color: var(--text-1);
+}
+.workspace-button.primary,
+.command-save {
+  border-color: var(--accent-teal);
+  background: var(--accent-teal);
+  color: #092426;
+  font-weight: 650;
+}
+.workspace-button.primary:hover,
+.command-save:hover { background: color-mix(in srgb, var(--accent-teal) 82%, white); color: #092426; }
+
+.tile,
+.priority-card,
+.link-group,
+.recording-library,
+.recording-detail,
+.settings-card,
+.credentials-form-card,
+.credentials-library,
+.notes-library,
+.notes-detail,
+.quadrant {
+  border: 1px solid var(--hairline-soft);
+  border-radius: var(--r-tile);
+  background: var(--surface-1);
+  box-shadow: 0 8px 20px var(--panel-shadow);
+}
+.tile::after { display: none; }
+.tile:hover,
+.priority-card:hover,
+.link-group:hover,
+.settings-card:hover { box-shadow: 0 10px 24px var(--panel-shadow); }
+.tile-label {
+  color: var(--text-2);
+  font-size: 12px;
+  font-weight: 650;
+  letter-spacing: .1px;
+}
+
+/* 首页：12 列工作台。固定的命名区域避免隐藏组件后挤成窄条。 */
+#tab-home { min-width: 0; }
+.home-bento {
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  grid-template-rows: repeat(4, minmax(0, 1fr));
+  grid-template-areas:
+    'commands commands commands commands commands commands usage usage usage note note note'
+    'commands commands commands commands commands commands usage usage usage note note note'
+    'mirror mirror mirror mirror mirror mirror recorder recorder recorder pomodoro pomodoro pomodoro'
+    'mirror mirror mirror mirror mirror mirror windows windows windows music music music';
+  grid-auto-flow: row;
+  gap: 14px;
+  height: 100%;
+}
+.home-bento > [data-home-module] {
+  min-width: 0;
+  min-height: 0;
+  padding: 16px;
+  border-radius: var(--r-tile);
+}
+.home-commands { grid-area: commands; }
+.home-usage { grid-area: usage; }
+.home-note { grid-area: note; }
+.home-mirror { grid-area: mirror; }
+.home-recorder { grid-area: recorder; }
+.home-pomodoro { grid-area: pomodoro; }
+.home-windows { grid-area: windows; }
+.home-music { grid-area: music; }
+.home-commands .command-add-form { gap: 8px; }
+.home-commands .command-add-head { gap: 8px; }
+.home-commands .command-title-add,
+.home-commands .command-add,
+.note-input,
+.link-add-wrap,
+.notes-search-wrap,
+.recording-transcript-editor,
+.settings-card input,
+.settings-card select,
+.credentials-form-card input,
+.credentials-library input {
+  border: 1px solid var(--hairline-soft);
+  border-radius: 10px;
+  background: var(--surface-2);
+  color: var(--text-1);
+}
+.home-commands .command-title-add:focus,
+.home-commands .command-add:focus,
+.note-input:focus,
+.link-add-wrap:focus-within,
+.notes-search-wrap:focus-within,
+.recording-transcript-editor:focus,
+.settings-card input:focus,
+.settings-card select:focus,
+.credentials-form-card input:focus,
+.credentials-library input:focus {
+  border-color: color-mix(in srgb, var(--accent-teal) 70%, transparent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent-teal) 14%, transparent);
+  outline: none;
+}
+.command-item {
+  min-height: 56px;
+  margin-top: 7px;
+  padding: 10px 11px;
+  border: 1px solid var(--hairline-soft);
+  border-radius: 11px;
+  background: var(--surface-2);
+}
+.command-item:hover,
+.command-item.copied { background: var(--surface-3); border-color: var(--hairline); }
+
+.home-note,
+.home-commands,
+.home-usage,
+.home-recorder,
+.home-windows { display: flex; flex-direction: column; }
+.home-note .note-body,
+.home-commands .command-list,
+.home-usage .usage-body,
+.home-windows .window-list { min-height: 0; overflow: auto; }
+.home-note .note-input { min-height: 0; padding: 11px; line-height: 1.65; }
+.home-usage { gap: 12px; }
+.home-usage::before { display: none; }
+.usage-overview { background: var(--surface-2); border: 1px solid var(--hairline-soft); box-shadow: none; }
+.usage-overview strong { color: var(--accent-teal); }
+.usage-window { border-top-color: var(--hairline-soft); }
+.home-mirror { overflow: hidden; padding: 0 !important; }
+.home-mirror .mirror-stage { border-radius: inherit; }
+.home-mirror .mirror-photo { filter: saturate(.82) contrast(.96); }
+.home-recorder .recording-state-dot { background: var(--accent-orange); box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent-orange) 12%, transparent); }
+.home-recorder .recorder-controls { gap: 8px; }
+.record-control { width: 34px; height: 34px; }
+.home-pomodoro { background: color-mix(in srgb, var(--surface-1) 92%, var(--accent-orange)); }
+.home-pomodoro .pomodoro-dial input,
+.home-pomodoro .pomodoro-dial span { color: var(--accent-orange); text-shadow: none; }
+.home-pomodoro .pomodoro-caption { color: var(--text-3); }
+.home-music { background: color-mix(in srgb, var(--surface-1) 90%, var(--accent-blue)); }
+.home-music .module-effect-canvas,
+.home-music .music-ambient { opacity: .18; }
+.music-controls .music-play { background: var(--accent-teal); color: #092426; }
+
+/* Some older module rules include a [data-widget-size] selector and therefore
+   outrank the base tile selector. Repeat the module selector here so their
+   former image/gradient skins cannot leak back into the refreshed workbench. */
+#tab-home .home-usage[data-widget-size],
+#tab-home .home-commands[data-widget-size],
+#tab-home .home-note[data-widget-size],
+#tab-home .home-recorder[data-widget-size],
+#tab-home .home-windows[data-widget-size] {
+  background: var(--surface-1) !important;
+  box-shadow: 0 8px 20px var(--panel-shadow) !important;
+}
+#tab-home .home-music[data-widget-size] {
+  background: color-mix(in srgb, var(--surface-1) 90%, var(--accent-blue)) !important;
+  box-shadow: 0 8px 20px var(--panel-shadow) !important;
+}
+#tab-home .home-pomodoro[data-widget-size] {
+  background: color-mix(in srgb, var(--surface-1) 92%, var(--accent-orange)) !important;
+  box-shadow: 0 8px 20px var(--panel-shadow) !important;
+}
+#tab-home .home-mirror[data-widget-size] { box-shadow: 0 8px 20px var(--panel-shadow) !important; }
+
+html[data-theme='light'] .report-launcher-button {
+  border-color: var(--hairline-soft) !important;
+  background: transparent !important;
+  color: var(--text-3) !important;
+}
+html[data-theme='light'] .report-launcher-button:hover,
+html[data-theme='light'] .report-launcher-button[aria-expanded='true'] {
+  border-color: var(--hairline) !important;
+  background: var(--item-hover) !important;
+  color: var(--text-1) !important;
+}
+html[data-theme='light'] .report-launcher-mark,
+html[data-theme='light'] .report-launcher-menu button > span:last-child { color: var(--accent-teal) !important; }
+html[data-theme='light'] .report-launcher-menu {
+  border-color: var(--hairline) !important;
+  background: var(--surface-1) !important;
+  box-shadow: 0 16px 36px var(--panel-shadow) !important;
+}
+html[data-theme='light'] .report-launcher-menu button { color: var(--text-2) !important; }
+html[data-theme='light'] .report-launcher-menu button:hover { background: var(--item-hover) !important; color: var(--text-1) !important; }
+html[data-theme='light'] .report-launcher-menu small { color: var(--text-3) !important; }
+html[data-theme='light'] #tab-home .home-pomodoro .pomodoro-dial input,
+html[data-theme='light'] #tab-home .home-pomodoro .pomodoro-dial span {
+  color: var(--accent-orange) !important;
+  text-shadow: none !important;
+}
+html[data-theme='light'] #tab-home .home-pomodoro > .pomodoro-toggle,
+html[data-theme='light'] #tab-home .home-pomodoro > .pomodoro-reset {
+  color: var(--text-2) !important;
+  background: var(--surface-2) !important;
+}
+
+/* 待办四象限：用一条色点表达优先级，其余保持中性。 */
+#tab-todo .sections { gap: 14px; }
+#tab-todo .quadrant {
+  padding: 16px;
+  background: var(--surface-1);
+}
+#tab-todo .quadrant-header { padding-bottom: 12px; border-bottom: 1px solid var(--hairline-soft); }
+#tab-todo .quadrant-title,
+#tab-todo .todo-category-name { font-size: 15px; font-weight: 650; }
+#tab-todo .dot { width: 8px; height: 8px; box-shadow: 0 0 0 4px color-mix(in srgb, currentColor 12%, transparent); }
+#tab-todo .todo-item { min-height: 44px; }
+#tab-todo .todo-item:hover { background: var(--item-hover); }
+#tab-todo .add-row input { background: var(--surface-2); }
+
+/* 笔记、链接、录音、密钥、设置统一为同一套文档工作区。 */
+.notes-page,
+.links-page,
+.recordings-page,
+.credentials-page,
+.settings-page { gap: 14px; }
+.notes-library,
+.notes-detail,
+.recording-library,
+.recording-detail,
+.credentials-form-card,
+.credentials-library,
+.settings-card { background: var(--surface-1); }
+.notes-list-item { border-bottom-color: var(--hairline-soft); }
+.notes-list-item:hover { background: var(--item-hover); }
+.notes-list-item.active {
+  background: color-mix(in srgb, var(--accent-teal) 10%, var(--surface-2));
+  box-shadow: inset 3px 0 0 var(--accent-teal);
+}
+.link-add-wrap { min-height: 40px; padding: 0 12px; }
+.link-group { overflow: hidden; }
+.link-group-head { min-height: 44px; padding: 8px 12px; }
+.recording-library-head,
+.credentials-library-head { padding-bottom: 10px; border-bottom: 1px solid var(--hairline-soft); }
+.settings-card { padding: 18px; }
+.settings-card-heading strong,
+.notes-library-head strong,
+.recording-library-head strong,
+.credentials-library-head strong { font-size: 16px; color: var(--text-1); }
+.settings-card p,
+.settings-inline-note,
+.credentials-note { font-size: 12px; line-height: 1.55; color: var(--text-3); }
+.settings-feature-grid label,
+.settings-home-module-grid label { border: 1px solid var(--hairline-soft); border-radius: 10px; background: var(--surface-2); }
+.settings-feature-grid label:hover,
+.settings-home-module-grid label:hover { background: var(--surface-3); transform: none; }
+.settings-feature-grid input:checked + i,
+.settings-home-module-grid input:checked + i { background: var(--accent-teal); box-shadow: none; }
+
+html[data-theme='light'] .panel::before { background: var(--bg-base); }
+html[data-theme='light'] .tabs { box-shadow: 0 4px 14px rgba(39, 76, 79, .08); }
+html[data-theme='light'] .tile,
+html[data-theme='light'] .priority-card,
+html[data-theme='light'] .link-group,
+html[data-theme='light'] .recording-library,
+html[data-theme='light'] .recording-detail,
+html[data-theme='light'] .settings-card,
+html[data-theme='light'] .credentials-form-card,
+html[data-theme='light'] .credentials-library,
+html[data-theme='light'] .notes-library,
+html[data-theme='light'] .notes-detail,
+html[data-theme='light'] .quadrant { box-shadow: 0 8px 20px rgba(39, 76, 79, .09); }
+html[data-theme='light'] .home-mirror .mirror-photo { filter: saturate(.72) contrast(.98); }
+
+@media (max-width: 1100px) {
+  .panel { padding-right: 14px; padding-left: 14px; }
+  .home-bento { gap: 10px; }
+  .home-bento > [data-home-module] { padding: 12px; }
+  .tab { padding-right: 8px; padding-left: 8px; }
+}
+
+@media (max-width: 820px) {
+  .topbar { overflow-x: auto; }
+  .tabs { flex: 0 0 max-content; }
+  .home-bento {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+    grid-template-rows: repeat(6, minmax(96px, 1fr));
+    grid-template-areas:
+      'commands commands commands commands usage usage'
+      'commands commands commands commands usage usage'
+      'note note note mirror mirror mirror'
+      'note note note mirror mirror mirror'
+      'recorder recorder pomodoro pomodoro music music'
+      'windows windows windows windows windows windows';
+  }
+  .notes-page,
+  .recordings-page,
+  .credentials-page { grid-template-columns: minmax(0, 1fr); }
+  .notes-library { max-height: 42%; }
+}
+
+@media (max-width: 620px) {
+  .panel { padding: 8px 10px 12px; }
+  .tabs { width: 100%; justify-content: space-between; }
+  .tab { min-width: 34px; padding: 0 7px; }
+  .tab-label { display: none; }
+  .home-bento {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    overflow-y: auto;
+  }
+  .home-bento > [data-home-module] { min-height: 180px; flex: 0 0 180px; }
+  .home-bento > .home-commands { min-height: 320px; flex-basis: 320px; }
+  .home-bento > .home-mirror { min-height: 220px; flex-basis: 220px; }
+  #tab-todo .sections { grid-template-columns: minmax(0, 1fr); grid-template-rows: none; overflow-y: auto; }
+  #tab-todo .quadrant { min-height: 220px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tile, .workspace-button, .tab, .tab-indicator { transition: none !important; }
+}
