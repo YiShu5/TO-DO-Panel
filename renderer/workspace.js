@@ -909,7 +909,7 @@
   let transcriptionAudioSource = null;
   let transcriptionAudioProcessor = null;
   let transcriptionAudioMute = null;
-  let transcriptionPcmQueue = [];
+  let transcriptionAudioGap = false;
   let transcriptionFinishPromise = null;
   let strandsAudioContext = null;
   let strandsAudioSource = null;
@@ -1249,7 +1249,9 @@
     if (transcriptionConfig.asrNeedsReentry) return '转写密钥已失效 · 请重新配置 API Key';
     if (transcriptionStatus === 'browser-error') return '未配置转写 API · 音频仍在录制';
     if (transcriptionStatus === 'error') return '转写连接失败 · 音频仍在录制';
+    if (transcriptionStatus === 'reconnecting') return '转写中断，正在自动重连 · 音频仍在录制';
     if (transcriptionStatus === 'connecting') return '正在连接转写服务';
+    if (transcriptionAudioGap) return '断线期间部分转写可能缺失 · 完整音频仍在本机录制';
     if (recordingStatus === 'paused') return '录音已暂停';
     if (!transcriptionConfig.configured && !currentRecordingText()) return '未配置转写 API · 音频仍会保存在本机';
     return '正在录音';
@@ -1332,18 +1334,12 @@
     transcriptionAudioSource = null;
     transcriptionAudioProcessor = null;
     transcriptionAudioMute = null;
-    transcriptionPcmQueue = [];
   }
 
   function sendTranscriptionPcm(buffer) {
     if (!buffer || !buffer.byteLength || !window.notchAPI) return;
-    if (transcriptionStatus === 'connected') {
+    if (['connecting', 'connected', 'reconnecting'].includes(transcriptionStatus)) {
       window.notchAPI.sendTranscriptionAudio(buffer);
-      return;
-    }
-    if (transcriptionStatus === 'connecting') {
-      transcriptionPcmQueue.push(buffer);
-      if (transcriptionPcmQueue.length > 60) transcriptionPcmQueue.shift();
     }
   }
 
@@ -1375,7 +1371,7 @@
   async function startCloudTranscription() {
     if (!transcriptionConfig.configured || !window.notchAPI || !mediaStream) return { ok: false, error: 'not_configured' };
     transcriptionStatus = 'connecting';
-    transcriptionPcmQueue = [];
+    transcriptionAudioGap = false;
     startTranscriptionAudioPipeline(mediaStream);
     updateRecordingUi();
     let result;
@@ -1390,10 +1386,7 @@
       updateRecordingUi();
       return result || { ok: false };
     }
-    transcriptionStatus = 'connected';
-    const queued = transcriptionPcmQueue;
-    transcriptionPcmQueue = [];
-    queued.forEach((buffer) => window.notchAPI.sendTranscriptionAudio(buffer));
+    if (transcriptionStatus === 'connecting') transcriptionStatus = 'connected';
     updateRecordingUi();
     return result;
   }
@@ -1401,9 +1394,9 @@
   async function finishCloudTranscription() {
     if (!transcriptionStartPromise) return { ok: false, error: 'not_active', transcript: recordingTranscript };
     stopTranscriptionAudioPipeline();
-    await transcriptionStartPromise;
+    // The main process keeps a bounded audio queue and reconnects in the
+    // background; stopping must not wait for a reconnect to finish.
     transcriptionStartPromise = null;
-    if (transcriptionStatus !== 'connected') return { ok: false, error: 'not_connected', transcript: recordingTranscript };
     transcriptionStatus = 'finishing';
     updateRecordingUi();
     let result;
@@ -1427,6 +1420,10 @@
         interimTranscript = String(event.interim || '').trim();
       } else if (event.type === 'error') {
         transcriptionStatus = 'error';
+      } else if (event.type === 'status' && ['connected', 'reconnecting'].includes(event.status)) {
+        if (transcriptionStatus !== 'finishing') transcriptionStatus = event.status;
+      } else if (event.type === 'warning' && event.code === 'audio_gap') {
+        transcriptionAudioGap = true;
       }
       updateRecordingUi();
     });

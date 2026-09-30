@@ -190,6 +190,7 @@ function normalizeTodoItems(value) {
         text,
         done: item.done === true,
         createdAt: Number.isFinite(item.createdAt) ? item.createdAt : Date.now(),
+        completedAt: Math.max(0, Number(item.completedAt) || 0),
         deadline: Number.isFinite(Date.parse(String(item.deadline || '')))
           ? new Date(Date.parse(String(item.deadline))).toISOString()
           : '',
@@ -456,6 +457,7 @@ function toggleTodo(priority, id) {
   const restoreFocus = document.activeElement?.closest('.todo-item')?.dataset.id === id;
   list[idx].done = !list[idx].done;
   const nowDone = list[idx].done;
+  list[idx].completedAt = nowDone ? Date.now() : 0;
   saveData(data);
   renderList(priority, {
     previousPositions,
@@ -938,8 +940,120 @@ function hideReportPanel() {
   tabPanels.forEach((p) => { p.inert = p.id !== `tab-${activeTab}`; });
   void window.reportAPI?.returnHome?.();
 }
+
+function reportActivityDateKey(value) {
+  const date = new Date(Number(value));
+  if (!Number.isFinite(date.getTime())) return '';
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+}
+
+function reportActivityWeekDates(weekKey) {
+  const match = /^(\d{4})-W(\d{2})$/.exec(String(weekKey || ''));
+  if (!match) return [];
+  const year = Number(match[1]);
+  const week = Number(match[2]);
+  const anchor = new Date(year, 0, 4);
+  const monday = new Date(anchor);
+  monday.setDate(anchor.getDate() - ((anchor.getDay() + 6) % 7) + (week - 1) * 7);
+  return Array.from({ length: 7 }, (_, index) => {
+    const day = new Date(monday);
+    day.setDate(monday.getDate() + index);
+    return reportActivityDateKey(day.getTime());
+  });
+}
+
+function reportActivityCurrentWeekKey(date = new Date()) {
+  const anchor = new Date(date);
+  anchor.setDate(anchor.getDate() + 4 - (anchor.getDay() || 7));
+  const yearStart = new Date(anchor.getFullYear(), 0, 1);
+  const week = Math.ceil((((anchor - yearStart) / 86400000) + 1) / 7);
+  return `${anchor.getFullYear()}-W${String(week).padStart(2, '0')}`;
+}
+
+function reportActivitySnapshot({ type = 'daily', key = '' } = {}) {
+  const normalizedType = type === 'weekly' ? 'weekly' : 'daily';
+  const today = reportActivityDateKey(Date.now());
+  const currentWeek = reportActivityCurrentWeekKey();
+  const targetKey = normalizedType === 'daily' && /^\d{4}-\d{2}-\d{2}$/.test(key)
+    ? key
+    : normalizedType === 'weekly' && /^\d{4}-W\d{2}$/.test(key)
+      ? key
+      : normalizedType === 'weekly' ? currentWeek : today;
+  const dateKeys = new Set(normalizedType === 'weekly' ? reportActivityWeekDates(targetKey) : [targetKey]);
+  const lines = [];
+  const seen = new Set();
+  const add = (prefix, value) => {
+    const text = String(value || '').replace(/\s+/g, ' ').trim().slice(0, 220);
+    if (!text) return;
+    const line = `${prefix}：${text}`;
+    if (seen.has(line)) return;
+    seen.add(line);
+    lines.push(line);
+  };
+  PRIORITIES.forEach((priority) => {
+    (data[priority] || []).forEach((item) => {
+      const completed = reportActivityDateKey(item.completedAt);
+      const created = reportActivityDateKey(item.createdAt);
+      if (item.done && dateKeys.has(completed)) add('✅', item.text);
+      else if (!item.done && dateKeys.has(created)) add('🚶', item.text);
+    });
+  });
+  loadNoteArchive().forEach((note) => {
+    if (!dateKeys.has(reportActivityDateKey(note.updatedAt))) return;
+    const title = noteArchiveTitle(note);
+    const excerpt = String(note.content || '').replace(/\s+/g, ' ').trim();
+    add('🚶', `${title === '未命名笔记' ? '随笔' : title}${excerpt ? `：${excerpt}` : ''}`);
+  });
+  try {
+    const recordings = JSON.parse(localStorage.getItem('notch-recordings') || '[]');
+    if (Array.isArray(recordings)) recordings.forEach((recording) => {
+      if (!dateKeys.has(reportActivityDateKey(recording?.createdAt))) return;
+      const transcript = String(recording?.transcript || '').replace(/\s+/g, ' ').trim();
+      if (transcript) add('🚶', `录音${recording?.title ? `「${recording.title}」` : ''}：${transcript}`);
+    });
+  } catch (error) {
+    // A malformed recording cache must not prevent reports from opening.
+  }
+  return { ok: true, type: normalizedType, key: targetKey, work: lines.slice(0, 40).join('\n'), plan: '', count: Math.min(lines.length, 40) };
+}
+
+async function maybeNudgeReport() {
+  const now = new Date();
+  const weekly = now.getDay() === 5 && (now.getHours() > 17 || (now.getHours() === 17 && now.getMinutes() >= 0));
+  const type = weekly ? 'weekly' : 'daily';
+  const thresholdPassed = weekly || now.getHours() > 17 || (now.getHours() === 17 && now.getMinutes() >= 30);
+  if (!thresholdPassed) return;
+  const key = weekly ? reportActivityCurrentWeekKey(now) : reportActivityDateKey(now.getTime());
+  const nudgeKey = `todo-panel-report-nudge-seen:${type}:${key}`;
+  if (localStorage.getItem(nudgeKey)) return;
+  const snapshot = reportActivitySnapshot({ type, key });
+  if (!snapshot.count) return;
+  let latest = null;
+  try {
+    latest = await window.reportAPI?.get?.({ type, key });
+  } catch (error) {
+    latest = null;
+  }
+  if (latest?.exists) {
+    localStorage.setItem(nudgeKey, '1');
+    return;
+  }
+  showStatusToast(weekly ? `本周有 ${snapshot.count} 条工作素材可整理成周报` : `今天有 ${snapshot.count} 条工作素材可整理成日报`, {
+    actionLabel: weekly ? '写周报' : '写日报',
+    duration: 9000,
+    onAction: () => {
+      localStorage.setItem(nudgeKey, '1');
+      return window.notchAPI?.openReport?.(type);
+    },
+    onExpire: () => localStorage.setItem(nudgeKey, '1'),
+  });
+}
+
 window.PanelReport = {
-  api: window.reportAPI,
+  api: {
+    ...window.reportAPI,
+    getActivitySnapshot: (options) => reportActivitySnapshot(options),
+  },
   setTextEntryActive: (active) => window.notchAPI?.setTextEntryActive?.(active),
 };
 window.notchAPI?.onShowReport?.(async (type) => {
@@ -4258,3 +4372,4 @@ renderAll();
 renderClipList(); // 首屏确保 clip-list DOM 就绪时渲染一次（幂等）
 renderClipFavs(); // 首屏渲染收藏剪贴块
 initTab();
+setTimeout(() => { void maybeNudgeReport(); }, 1200);

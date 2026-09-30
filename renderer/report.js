@@ -226,6 +226,22 @@ async function loadReport(key = currentKey(), { fromDisk = false, version } = {}
     if ((latest?.revision || null) !== currentRevision) {
       saveStatusEl.textContent = 'Obsidian 原稿已变化。已保留本机草稿；复制备份或载入原稿后再编辑。';
     }
+    if (draft.auto && !latest?.exists) {
+      const activity = await reportApi().getActivitySnapshot?.({ type: target.type, key });
+      if (token !== generation) return;
+      if (activity?.ok && activity.work) {
+        const existing = workInput.value.trim();
+        const existingLines = new Set(existing.split(/\r?\n/).map((line) => line.trim()).filter(Boolean));
+        const additions = activity.work.split(/\r?\n/).map((line) => line.trim())
+          .filter((line) => line && !existingLines.has(line));
+        if (additions.length) {
+          workInput.value = existing ? `${existing}\n${additions.join('\n')}` : additions.join('\n');
+          previewInput.value = buildBody(target.type, key, workInput.value, planInput.value);
+          previewInput.dataset.auto = 'true';
+          saveStatusEl.textContent = `已自动带出 ${additions.length} 条新增工作素材，可直接修改后保存。`;
+        }
+      }
+    }
   } else if (latest?.ok && latest.exists) {
     setBody(latest.content);
     currentRevision = latest.revision;
@@ -235,6 +251,18 @@ async function loadReport(key = currentKey(), { fromDisk = false, version } = {}
       const sources = await reportApi().weeklySources({ weekKey: key }).catch(() => null);
       if (token !== generation) return;
       if (sources?.ok) workInput.value = window.ReportFormat.summarizeSources(sources.items || []);
+    }
+    const activity = await reportApi().getActivitySnapshot?.({ type: target.type, key });
+    if (token !== generation) return;
+    if (activity?.ok && activity.work) {
+      const existing = workInput.value.trim();
+      const existingLines = new Set(existing.split(/\r?\n/).map((line) => line.trim()).filter(Boolean));
+      const additions = activity.work.split(/\r?\n/).map((line) => line.trim())
+        .filter((line) => line && !existingLines.has(line));
+      if (additions.length) {
+        workInput.value = existing ? `${existing}\n${additions.join('\n')}` : additions.join('\n');
+        saveStatusEl.textContent = `已自动带出 ${additions.length} 条工作素材，可直接修改后保存。`;
+      }
     }
     previewInput.value = buildBody(target.type, key, workInput.value, planInput.value);
   }

@@ -8,6 +8,7 @@ const {
   recordingExtension,
   normalizeWindowRows,
   todoReminderState,
+  todoReminderTimerDelay,
   taskNotificationIdentity,
   normalizeCredentialInput,
   parseSmartLinkMetadata,
@@ -32,6 +33,13 @@ const {
   normalizeCodexBarSnapshot,
   normalizeCodexResetCredits,
 } = require('../main-services');
+
+test('todo reminder timer delay stays within Node timer limits', () => {
+  assert.equal(todoReminderTimerDelay(-1), 0);
+  assert.equal(todoReminderTimerDelay(Number.NaN), 0);
+  assert.equal(todoReminderTimerDelay(1.4), 1);
+  assert.equal(todoReminderTimerDelay(2 ** 31), (2 ** 31) - 1);
+});
 
 test('CodexBar dashboard data is minimized to usage windows without account identity', () => {
   const normalized = normalizeCodexBarSnapshot({

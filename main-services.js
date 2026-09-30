@@ -173,6 +173,16 @@ function todoReminderState(todo, now = Date.now(), leadMs = 60 * 60 * 1000) {
   return { state: 'scheduled', delayMs: triggerAt - current };
 }
 
+// Node/Electron timers clamp delays above a signed 32-bit integer. Keep long
+// deadlines alive by waking up periodically instead of silently overflowing.
+const MAX_NODE_TIMER_DELAY_MS = (2 ** 31) - 1;
+
+function todoReminderTimerDelay(delayMs) {
+  const normalizedDelay = Number(delayMs);
+  if (!Number.isFinite(normalizedDelay) || normalizedDelay <= 0) return 0;
+  return Math.min(Math.max(1, Math.round(normalizedDelay)), MAX_NODE_TIMER_DELAY_MS);
+}
+
 function firstPayloadText(payload, keys) {
   for (const key of keys) {
     const value = payload && payload[key];
@@ -618,6 +628,7 @@ module.exports = {
   recordingExtension,
   normalizeWindowRows,
   todoReminderState,
+  todoReminderTimerDelay,
   taskNotificationIdentity,
   normalizeCredentialInput,
   parseSmartLinkMetadata,
