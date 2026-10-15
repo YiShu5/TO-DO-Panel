@@ -12,6 +12,9 @@ const workLabelEl = document.getElementById('work-label');
 const planLabelEl = document.getElementById('plan-label');
 const workInput = document.getElementById('work-input');
 const planInput = document.getElementById('plan-input');
+const summaryInput = document.getElementById('summary-input');
+const summaryField = document.getElementById('summary-field');
+const weekendNote = document.getElementById('weekend-note');
 const previewInput = document.getElementById('preview-input');
 const saveButton = document.getElementById('save-report');
 const copyButton = document.getElementById('copy-report');
@@ -57,52 +60,13 @@ function isoWeekKey(date = new Date()) {
   return `${copy.getUTCFullYear()}-W${pad2(week)}`;
 }
 
-function stripBullet(line) {
-  return String(line || '').trim()
-    .replace(/^[-*•]\s*/, '')
-    .replace(/^\d+[.、)]\s*/, '')
-    .trim();
-}
-
-function normalizeWorkLines(raw) {
-  return String(raw || '').split(/\r?\n/)
-    .map(stripBullet)
-    .filter(Boolean)
-    .map((line) => {
-      if (/^✅\s*[：:]/.test(line)) return `✅：${line.replace(/^✅\s*[：:]\s*/, '')}`;
-      if (/^🚶\s*[：:]/.test(line)) return `🚶：${line.replace(/^🚶\s*[：:]\s*/, '')}`;
-      if (/^✅/.test(line)) return `✅：${line.slice(1).trim()}`;
-      if (/^🚶/.test(line)) return `🚶：${line.slice(1).trim()}`;
-      return `🚶：${line}`;
-    });
-}
-
-function normalizePlanLines(raw) {
-  return String(raw || '').split(/\r?\n/).map(stripBullet).filter(Boolean);
-}
-
-function buildBody(type, key, work, plan) {
-  if (window.ReportFormat?.build) return window.ReportFormat.build({ type, key, work, plan });
-  const workLines = normalizeWorkLines(work);
-  const planLines = normalizePlanLines(plan);
-  const body = [];
-  if (type === DAILY) {
-    const [year, month, day] = key.split('-').map(Number);
-    body.push(`${month}月${day}日工作总结`);
-  } else {
-    body.push('本周工作进展');
-  }
-  if (workLines.length) body.push(...workLines);
-  if (!workLines.length) body.push('🚶：');
-  body.push('');
-  body.push(type === DAILY ? '明日计划：' : '下周计划');
-  planLines.forEach((line, index) => body.push(`${index + 1}、${line}`));
-  return body.join('\n');
+function buildBody(type, key, work, plan, summary = summaryInput.value) {
+  return window.ReportFormat.build({ type, key, work, plan, summary });
 }
 
 function defaultDraft(type) {
   const key = type === DAILY ? localDateKey() : isoWeekKey();
-  return { key, work: '', plan: '', preview: '' };
+  return { key, work: '', plan: '', summary: '', preview: '' };
 }
 
 function draftKey(target) {
@@ -128,6 +92,7 @@ function readDraft(target) {
 function writeDraft() {
   if (!scope || loading) return;
   const value = { key: scope.key, work: workInput.value, plan: planInput.value,
+    summary: summaryInput.value, formatVersion: 3,
     preview: previewInput.value, revision: currentRevision, auto: previewInput.dataset.auto === 'true' };
   try { localStorage.setItem(draftKey(scope), JSON.stringify(value)); }
   catch (error) { saveStatusEl.textContent = '本机草稿未能保存，请复制正文备份。'; }
@@ -159,21 +124,25 @@ function updatePreview(force = false) {
 
 function updateLabels() {
   const weekly = reportType === WEEKLY;
+  const context = window.ReportFormat.dailyContext(dailyDateEl.value);
   titleEl.textContent = weekly ? '周报' : '日报';
   document.title = `${weekly ? '周报' : '日报'} · TO-DO Panel`;
   periodLabelEl.textContent = weekly ? '这一周' : '今天';
   dailyPeriodEl.hidden = weekly;
   weeklyPeriodEl.hidden = !weekly;
-  workLabelEl.textContent = weekly ? '这一周做了什么？' : '今天做了什么？';
-  planLabelEl.textContent = weekly ? '下周准备做什么？' : '明天准备做什么？';
+  workLabelEl.textContent = weekly ? '本周工作进展' : '今日艾维利';
+  planLabelEl.textContent = weekly ? '下周计划' : context.planHeading;
+  summaryField.hidden = weekly || !context.requiresSummary;
+  weekendNote.hidden = weekly || !context.requiresSummary;
+  weekendNote.textContent = `明天是周末：请补充本周工作总结，并填写下周一（${context.nextWorkdayKey}）的艾维利。`;
   workInput.placeholder = weekly
-    ? '一行写一件本周工作。明确完成的事项前面写 ✅，正在推进的写 🚶。'
-    : '一行写一件事。明确完成的事项前面写 ✅，正在推进的写 🚶。';
+    ? '✅ 完成2场AI培训，覆盖销售和运营部门\n🚶‍♂️ Agent发布上线：已完成联调，待验收'
+    : '✅ 完成1场销售部门的AI培训\n🚶‍♂️ Agent发布上线：已完成联调，待验收';
   switcherButtons.forEach((button) => button.classList.toggle('active', button.dataset.reportType === reportType));
 }
 
 function syncControls() {
-  [workInput, planInput, previewInput].forEach((el) => { el.disabled = loading || saving; });
+  [workInput, planInput, summaryInput, previewInput].forEach((el) => { el.disabled = loading || saving; });
   saveButton.disabled = loading || saving || !vault;
   copyButton.disabled = loading || saving;
   [dailyDateEl, weeklyDateEl, chooseVaultButton, ...switcherButtons].forEach((el) => { el.disabled = saving; });
@@ -187,6 +156,7 @@ function setBody(content) {
   const parsed = window.ReportFormat.parse(content);
   workInput.value = parsed.work;
   planInput.value = parsed.plan;
+  summaryInput.value = parsed.summary || '';
   previewInput.value = content;
   previewInput.dataset.auto = 'false';
 }
@@ -201,7 +171,8 @@ async function loadReport(key = currentKey(), { fromDisk = false, version } = {}
   loading = true;
   syncControls();
   currentRevision = null;
-  workInput.value = planInput.value = previewInput.value = '';
+  workInput.value = planInput.value = summaryInput.value = previewInput.value = '';
+  previewInput.removeAttribute('aria-invalid');
   saveStatusEl.textContent = '';
   updateLabels();
   const draft = fromDisk ? null : readDraft(target);
@@ -218,15 +189,19 @@ async function loadReport(key = currentKey(), { fromDisk = false, version } = {}
   } else if (draft?.preview) {
     workInput.value = draft.work || '';
     planInput.value = draft.plan || '';
+    summaryInput.value = draft.summary || '';
     previewInput.value = draft.preview;
-    previewInput.dataset.auto = draft.auto ? 'true' : 'false';
+    previewInput.dataset.auto = draft.auto && draft.formatVersion === 3 ? 'true' : 'false';
+    if (draft.formatVersion !== 3) {
+      saveStatusEl.textContent = '已保留旧格式草稿；补齐状态和计划后，点击“按左侧重新生成”应用新规范。';
+    }
     // A draft's base revision must never be replaced with a newer disk revision.
     currentRevision = Object.hasOwn(draft, 'revision') ? draft.revision
       : latest?.content === draft.preview ? latest.revision : null;
     if ((latest?.revision || null) !== currentRevision) {
       saveStatusEl.textContent = 'Obsidian 原稿已变化。已保留本机草稿；复制备份或载入原稿后再编辑。';
     }
-    if (draft.auto && !latest?.exists) {
+    if (draft.auto && draft.formatVersion === 3 && !latest?.exists) {
       const activity = await reportApi().getActivitySnapshot?.({ type: target.type, key });
       if (token !== generation) return;
       if (activity?.ok && activity.work) {
@@ -337,8 +312,7 @@ async function saveReport() {
   if (!content || !currentKey()) return showToast('请先填写报告内容');
   const formatError = window.ReportFormat?.validate?.(reportType, currentKey(), content);
   if (formatError) {
-    saveStatusEl.textContent = formatError;
-    return showToast('请先把正文改成日报/周报格式');
+    return showFormatError(formatError);
   }
   saving = true;
   syncControls();
@@ -346,6 +320,7 @@ async function saveReport() {
   saving = false;
   syncControls();
   if (!result?.ok) {
+    if (result?.error === 'invalid_format') return showFormatError(result.message);
     if (result?.error === 'conflict' || result?.error === 'revision_conflict') {
       saveStatusEl.textContent = 'Obsidian 里的原稿已变化，请重新载入后再保存。';
       return showToast('检测到外部修改，未覆盖原稿');
@@ -367,16 +342,31 @@ async function copyReport() {
   if (loading || saving) return;
   const content = previewInput.value.trim();
   if (!content) return showToast('没有可复制的正文');
+  const formatError = window.ReportFormat.validate(reportType, currentKey(), content);
+  if (formatError) return showFormatError(formatError);
   const copied = await reportApi().copy?.({ type: reportType, key: currentKey(), revision: currentRevision, content, confirmed: true }).catch(() => false);
+  if (copied?.error === 'invalid_format') return showFormatError(copied.message);
   if (copied?.ok === true || copied === true) return showToast('正文已复制，可直接粘贴到微信');
   showToast('复制失败，请重试');
 }
 
-[workInput, planInput].forEach((input) => input.addEventListener('input', () => {
+function showFormatError(message) {
+  saveStatusEl.textContent = message;
+  previewInput.setAttribute('aria-invalid', 'true');
+  previewInput.focus();
+  showToast(message);
+}
+
+[workInput, planInput, summaryInput].forEach((input) => input.addEventListener('input', () => {
+  previewInput.removeAttribute('aria-invalid');
   updatePreview(false);
   if (previewInput.dataset.auto === 'false') saveStatusEl.textContent = '已保留手动正文。如需采用左侧修改，请点击“按左侧重新生成”。';
 }));
-previewInput.addEventListener('input', () => { previewInput.dataset.auto = 'false'; writeDraft(); });
+previewInput.addEventListener('input', () => {
+  previewInput.removeAttribute('aria-invalid');
+  previewInput.dataset.auto = 'false';
+  writeDraft();
+});
 dailyDateEl.addEventListener('change', () => loadReport(dailyDateEl.value));
 weeklyDateEl.addEventListener('change', () => loadReport(weeklyDateEl.value));
 saveButton.addEventListener('click', saveReport);
@@ -431,4 +421,8 @@ const ready = (async () => {
   await loadConfig();
   await setReportType(reportType);
 })();
-window.ReportPanel = { setType: async (type) => { await ready; return setReportType(type); }, ready };
+window.ReportPanel = {
+  setType: async (type) => { await ready; return setReportType(type); },
+  flushDraft: writeDraft,
+  ready,
+};

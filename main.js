@@ -24,6 +24,7 @@ const zlib = require('zlib');
 const crypto = require('crypto');
 const { execFile } = require('child_process');
 const { createReportStore } = require('./report-store');
+const ReportFormat = require('./renderer/report-format');
 const ObsidianPrompts = require('./obsidian-prompts');
 const {
   isPrivateAddress,
@@ -1050,7 +1051,6 @@ function createWindow() {
 
   // 失焦时让渲染层走完整退场动画，再由渲染层请求缩小原生窗口。
   mainWindow.on('blur', () => {
-    if (reportPanelActive) return;
     if (mediaPermissionRequests > 0 || transientSystemInteractionRequests > 0) {
       cameraBlurDeferred = true;
       return;
@@ -1685,12 +1685,13 @@ ipcMain.handle('reports:open-window', (event, type) => {
   if (!isKnownReportSender(event) || event.sender !== (mainWindow && mainWindow.webContents)) return false;
   return openReportInPanel(type);
 });
-ipcMain.handle('reports:return-home', (event) => {
+ipcMain.handle('reports:return-home', (event, options = {}) => {
   const owner = reportOwnerFromEvent(event);
   if (!owner || owner !== mainWindow) return false;
   reportPanelActive = false;
   mainWindow.setTitle('TO-DO Panel');
-  mainWindow.webContents.send('reports:hide-panel');
+  // 内部隐藏（切换 Tab / 收起）只结束报告状态，不覆盖用户刚选中的目标页。
+  if (options?.notify !== false) mainWindow.webContents.send('reports:hide-panel');
   return true;
 });
 ipcMain.handle('reports:get-config', (event) => {
@@ -1733,6 +1734,8 @@ ipcMain.handle('reports:save', (event, payload) => {
   if (!type || !key || !content.trim() || Buffer.byteLength(content, 'utf8') > 1024 * 1024) {
     return { ok: false, error: 'invalid_report' };
   }
+  const formatError = ReportFormat.validate(type, key, content);
+  if (formatError) return { ok: false, error: 'invalid_format', message: formatError };
   const result = reportStore().save({
     type,
     key,
@@ -1780,6 +1783,8 @@ ipcMain.handle('reports:copy', (event, payload) => {
   const content = payload.content;
   if (!type || !key || typeof content !== 'string' || !content.trim()
     || Buffer.byteLength(content, 'utf8') > 1024 * 1024) return { ok: false, error: 'invalid_report' };
+  const formatError = ReportFormat.validate(type, key, content);
+  if (formatError) return { ok: false, error: 'invalid_format', message: formatError };
   clipboard.writeText(content);
   return { ok: true };
 });

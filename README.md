@@ -107,6 +107,7 @@ npm start
 | 命令 | 用途 |
 | --- | --- |
 | `npm test` | 单元测试与 JavaScript 语法检查 |
+| `npm run test:reports` | 日报规范、Obsidian 存储与真实 Electron 编辑/退出回归（需要图形桌面） |
 | `npm start` | 启动 Electron 开发版 |
 | `npm run pack` | 生成未安装的 `.app` |
 | `npm run build` | 生成 Apple Silicon DMG |

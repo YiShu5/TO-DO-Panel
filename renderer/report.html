@@ -50,13 +50,19 @@
             </label>
           </div>
 
-          <label class="field-label" for="work-input" id="work-label">今天做了什么？</label>
-          <textarea id="work-input" class="report-input" placeholder="一行写一件事。明确完成的事项前面写 ✅，正在推进的写 🚶。"></textarea>
+          <label class="field-label" for="work-input" id="work-label">今日艾维利</label>
+          <textarea id="work-input" class="report-input" placeholder="✅ 完成1场销售部门的AI培训&#10;🚶‍♂️ Agent发布上线：已完成联调，待验收" aria-describedby="report-rules"></textarea>
 
-          <label class="field-label" for="plan-input" id="plan-label">明天准备做什么？</label>
-          <textarea id="plan-input" class="report-input report-plan-input" placeholder="一行写一项计划，保存时会自动整理成 1、2、3、"></textarea>
+          <div id="summary-field" hidden>
+            <label class="field-label" for="summary-input">本周工作总结</label>
+            <textarea id="summary-input" class="report-input" placeholder="✅ 完成2场AI培训，覆盖销售和运营部门&#10;🚶‍♂️ Agent发布上线：已通过测试，待发布" aria-describedby="report-rules"></textarea>
+          </div>
 
-          <p class="editor-note">只做格式整理，不替你补事实；没有明确完成的内容会保留为 🚶。</p>
+          <label class="field-label" for="plan-input" id="plan-label">明日艾维利</label>
+          <textarea id="plan-input" class="report-input report-plan-input" placeholder="❌ 完成Agent的发布上线&#10;🚶‍♂️ AI培训材料：补齐3个实操案例" aria-describedby="report-rules"></textarea>
+
+          <p class="editor-note" id="report-rules">每行写“工作 + 具体目标、结果或进度”，并标注 ✅ 完成 / 🚶‍♂️ 进行中 / ❌ 未完成。不使用 ing、✔；不自动猜测完成状态。</p>
+          <p class="editor-note" id="weekend-note" hidden>明天是周末：请补充本周工作总结，并填写下周一艾维利。</p>
           <div class="editor-actions">
             <button class="primary-button" id="save-report" type="button">保存到 Obsidian</button>
             <button class="secondary-button" id="copy-report" type="button">复制正文</button>

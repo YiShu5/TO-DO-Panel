@@ -119,6 +119,6 @@ contextBridge.exposeInMainWorld('reportAPI', {
     content,
     confirmed: confirmed === true,
   }),
-  returnHome: () => ipcRenderer.invoke('reports:return-home'),
+  returnHome: (options = {}) => ipcRenderer.invoke('reports:return-home', { notify: options?.notify !== false }),
   onFocusType: (callback) => subscribe('reports:focus-type', (_event, type) => callback(type)),
 });

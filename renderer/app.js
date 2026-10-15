@@ -935,10 +935,14 @@ Array.from(document.querySelectorAll('.tab[data-tab]')).forEach((btn) => {
 function hideReportPanel() {
   const frame = document.getElementById('report-frame');
   if (!frame || frame.hidden) return;
+  // iframe 保持存活；离开前同步落盘草稿，并释放输入焦点，避免隐藏页占用快捷键。
+  frame.contentWindow?.ReportPanel?.flushDraft?.();
+  frame.contentDocument?.activeElement?.blur?.();
   frame.hidden = true;
+  if (document.activeElement === frame) frame.blur();
   window.notchAPI?.setTextEntryActive?.(false);
   tabPanels.forEach((p) => { p.inert = p.id !== `tab-${activeTab}`; });
-  void window.reportAPI?.returnHome?.();
+  void window.reportAPI?.returnHome?.({ notify: false });
 }
 
 function reportActivityDateKey(value) {
