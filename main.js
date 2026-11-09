@@ -1218,7 +1218,10 @@ function reportKey(type, key) {
   const value = String(key || '').trim();
   if (!normalizedType) return '';
   const pattern = normalizedType === 'weekly' ? /^\d{4}-W\d{2}$/ : /^\d{4}-\d{2}-\d{2}$/;
-  return pattern.test(value) ? value : '';
+  if (!pattern.test(value)) return '';
+  // Date validity is an input boundary, independent of optional writing advice.
+  if (normalizedType === 'daily' && !ReportFormat.dailyContext(value).valid) return '';
+  return value;
 }
 
 function isKnownReportSender(event) {
@@ -1734,8 +1737,6 @@ ipcMain.handle('reports:save', (event, payload) => {
   if (!type || !key || !content.trim() || Buffer.byteLength(content, 'utf8') > 1024 * 1024) {
     return { ok: false, error: 'invalid_report' };
   }
-  const formatError = ReportFormat.validate(type, key, content);
-  if (formatError) return { ok: false, error: 'invalid_format', message: formatError };
   const result = reportStore().save({
     type,
     key,
@@ -1783,8 +1784,6 @@ ipcMain.handle('reports:copy', (event, payload) => {
   const content = payload.content;
   if (!type || !key || typeof content !== 'string' || !content.trim()
     || Buffer.byteLength(content, 'utf8') > 1024 * 1024) return { ok: false, error: 'invalid_report' };
-  const formatError = ReportFormat.validate(type, key, content);
-  if (formatError) return { ok: false, error: 'invalid_format', message: formatError };
   clipboard.writeText(content);
   return { ok: true };
 });

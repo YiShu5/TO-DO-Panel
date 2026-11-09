@@ -3,13 +3,27 @@ const assert = require('node:assert/strict');
 const ReportFormat = require('../renderer/report-format.js');
 
 const work = '✅：完成 1 场销售部 AI 培训\n🚶‍♂️：Agent 发布前测试完成 8 / 10 项';
-const plan = '❌：完成 Agent 的发布上线';
-const summary = '✅：本周完成 3 场 AI 培训，覆盖 60 人';
+
+test('Friday draft uses canonical progress, sorts weekly status and keeps plans numbered', () => {
+  const draft = ReportFormat.buildFridayDraft('2026-11-06', [
+    { key: '2026-11-02', content: '今日艾维利\n🚶 核对数据\n不带标记的工作\n❌ 补交材料' },
+    { key: '2026-11-06', content: '今日艾维利\n🏃1、整理培训稿\n✅2、核对数据\n🚶️3、跟进验收\n下周艾维利\n🚶‍♂️1、发布材料' },
+  ]);
+  assert.equal(draft, [
+    '11月6日工作总结', '', '今日艾维利',
+    '🚶‍♂️1、整理培训稿', '✅2、核对数据', '🚶‍♂️3、跟进验收',
+    '', '本周艾维利', '✅ 1、核对数据', '🚶‍♂️ 2、整理培训稿', '🚶‍♂️ 3、跟进验收',
+    '❌ 4、补交材料', '5、不带标记的工作', '',
+    '下周艾维利', '1、发布材料', '2、整理培训稿', '3、跟进验收', '4、补交材料',
+  ].join('\n'));
+});
+const plan = '完成 Agent 的发布上线';
+const summary = '本周完成 3 场 AI 培训，覆盖 60 人';
 function daily(key = '2026-10-15', overrides = {}) {
   return ReportFormat.build({ type: 'daily', key, work, plan, summary, ...overrides });
 }
 
-test('daily includes today and tomorrow Ivy Lee tasks with all three status markers', () => {
+test('daily requires work statuses while tomorrow tasks remain plain text', () => {
   const body = daily();
   assert.equal(body, `10月15日工作总结\n今日艾维利：\n${work}\n\n明日艾维利：\n${plan}`);
   assert.equal(ReportFormat.validate('daily', '2026-10-15', body), '');
@@ -22,8 +36,8 @@ test('Friday and Saturday require this week summary and Monday tasks', () => {
       valid: true, requiresSummary: true, planHeading: '下周一艾维利', nextWorkdayKey: '2026-10-19',
     });
     const body = daily(key);
-    assert.match(body, /本周工作总结：\n✅：本周完成/);
-    assert.match(body, /下周一艾维利：\n❌：完成 Agent 的发布上线$/);
+    assert.match(body, /本周工作总结：\n本周完成/);
+    assert.match(body, /下周一艾维利：\n完成 Agent 的发布上线$/);
     assert.doesNotMatch(body, /明日艾维利/);
     assert.equal(ReportFormat.parse(body).summary, summary);
     assert.equal(ReportFormat.validate('daily', key, body), '');
@@ -58,6 +72,7 @@ test('explicit legacy markers normalize only on rebuild and English names remain
   assert.match(body, /🚶‍♂️：培训材料整理 进行中/);
   assert.match(body, /🚶‍♂️：修复 spring boot 登录问题/);
   assert.match(body, /🚶‍♂️：完成 Planning 模块联调/);
+  assert.match(body, /明日艾维利：\n完成 Agent 的发布上线$/);
   assert.doesNotMatch(body, /✔/);
   assert.equal(ReportFormat.validate('daily', '2026-10-15', body), '');
 });
@@ -92,13 +107,40 @@ test('weekly sources include only work, normalize markers and deduplicate', () =
   assert.doesNotMatch(result, /覆盖 60 人|发布新版本/);
 });
 
-test('weekly keeps its existing headings and uses status markers for plans too', () => {
+test('weekly keeps work status markers but generates plain next-week plans', () => {
   const body = ReportFormat.build({ type: 'weekly', key: '2026-W42', work, plan });
   assert.equal(body, `本周工作进展\n${work}\n\n下周计划\n${plan}`);
   assert.equal(ReportFormat.validate('weekly', '2026-W42', body), '');
+  assert.match(ReportFormat.validate('weekly', '2026-W42', body.replace(work, '完成 1 场销售部 AI 培训')), /本周工作进展.*第 1 条.*不会自动猜测/);
 });
 
-test('missing work, plan and weekend summary are required with useful section errors', () => {
+test('rebuilding strips optional historical statuses only from plans and summaries', () => {
+  const oldPlan = '1、❌：完成 Agent 的发布上线\n2、🚶：核对销售培训签到表\n3、✔️：完成 Planning 模块联调';
+  const oldSummary = '✅：本周完成 3 场 AI 培训，覆盖 60 人\n🚶‍♂️：Agent 发布前测试完成 8 / 10 项';
+  const rebuilt = daily('2026-10-16', { plan: oldPlan, summary: oldSummary });
+  const parsed = ReportFormat.parse(rebuilt);
+  assert.equal(parsed.work, work);
+  assert.equal(parsed.plan, '完成 Agent 的发布上线\n核对销售培训签到表\n完成 Planning 模块联调');
+  assert.equal(parsed.summary, '本周完成 3 场 AI 培训，覆盖 60 人\nAgent 发布前测试完成 8 / 10 项');
+  assert.doesNotMatch(parsed.plan + parsed.summary, /✅|🚶|❌|✔/u);
+  assert.equal(ReportFormat.validate('daily', '2026-10-16', rebuilt), '');
+  const weekly = ReportFormat.build({ type: 'weekly', key: '2026-W42', work, plan: oldPlan });
+  assert.equal(ReportFormat.parse(weekly).plan, parsed.plan);
+  assert.equal(ReportFormat.parse(weekly).work, work);
+});
+
+test('manual plans and summaries accept plain or numbered content and optional legacy statuses', () => {
+  for (const marker of ['', '1、', '1. ', '✅：', '🚶‍♂️：', '❌：']) {
+    const body = daily('2026-10-16').replace(summary, marker + summary).replace(plan, marker + plan);
+    assert.equal(ReportFormat.validate('daily', '2026-10-16', body), '', marker);
+  }
+  const historical = daily('2026-10-16').replace(summary, '✅：' + summary).replace(plan, '❌：' + plan);
+  const parsed = ReportFormat.parse(historical);
+  assert.equal(parsed.plan, '❌：' + plan, 'parsing an old report must preserve its optional statuses');
+  assert.equal(parsed.summary, '✅：' + summary);
+});
+
+test('template advice identifies missing work, plan and weekend summary', () => {
   assert.match(ReportFormat.validate('daily', '2026-10-15', daily('2026-10-15', { work: '' })), /今日艾维利.*至少填写/);
   assert.match(ReportFormat.validate('daily', '2026-10-15', daily('2026-10-15', { plan: '' })), /明日艾维利.*至少填写/);
   assert.match(ReportFormat.validate('daily', '2026-10-16', daily('2026-10-16', { summary: '' })), /本周工作总结.*至少填写/);
@@ -106,14 +148,21 @@ test('missing work, plan and weekend summary are required with useful section er
   assert.match(ReportFormat.validate('daily', '2026-10-15', daily().replace('今日艾维利：\n', '')), /今日艾维利/);
 });
 
-test('raw edited output rejects forbidden markers, obsolete walk emoji and numbering', () => {
+test('template advice identifies nonstandard work markers and numbering', () => {
   for (const marker of ['✔', '✔️', '🚶', '1、']) {
-    const body = daily().replace('❌：', marker + '：');
-    assert.match(ReportFormat.validate('daily', '2026-10-15', body), /明日艾维利.*第 1 条/);
+    const body = daily().replace('✅：', marker + '：');
+    assert.match(ReportFormat.validate('daily', '2026-10-15', body), /今日艾维利.*第 1 条/);
   }
   for (const suffix of [' ing', 'ING', 'ing（70%）']) {
     const body = daily().replace('Agent 发布前测试完成 8 / 10 项', `Agent 发布前测试${suffix}`);
     assert.match(ReportFormat.validate('daily', '2026-10-15', body), /今日艾维利.*第 2 条.*ing/);
+  }
+});
+
+test('template advice identifies ing and checkmark variants in plans and summaries', () => {
+  for (const content of ['✔ 完成 Agent 的发布上线', 'Agent 发布上线 ing']) {
+    assert.match(ReportFormat.validate('daily', '2026-10-15', daily().replace(plan, content)), /明日艾维利.*第 1 条.*ing 或 ✔/);
+    assert.match(ReportFormat.validate('daily', '2026-10-16', daily('2026-10-16').replace(summary, content)), /本周工作总结.*第 1 条.*ing 或 ✔/);
   }
 });
 
@@ -125,15 +174,16 @@ test('manual preview accepts exact status markers with spaces or optional punctu
       .replace(`明日艾维利${separator}`, '明日艾维利：');
     assert.equal(ReportFormat.validate('daily', '2026-10-15', content), '');
   }
-  assert.match(ReportFormat.validate('daily', '2026-10-15', daily().replace(plan, '❌： ')), /实际内容/);
+  assert.match(ReportFormat.validate('daily', '2026-10-15', daily().replace(plan, '❌： ')), /明日艾维利.*第 1 条/);
 });
 
 test('obviously vague entries are rejected, concrete work need not have numbers', () => {
   for (const vague of ['继续推进', '整理文档', '完成工作', 'AI培训', '暂无计划', '...', '待填写']) {
-    assert.match(ReportFormat.validate('daily', '2026-10-15', daily('2026-10-15', { plan: `❌：${vague}` })), /明日艾维利.*第 1 条.*过于笼统/);
+    assert.match(ReportFormat.validate('daily', '2026-10-15', daily('2026-10-15', { plan: vague })), /明日艾维利.*第 1 条.*过于笼统/);
+    assert.match(ReportFormat.validate('daily', '2026-10-16', daily('2026-10-16', { summary: vague })), /本周工作总结.*第 1 条.*过于笼统/);
   }
   for (const concrete of ['修复登录错误', '发布Agent', '完成财务部培训', '提交培训复盘初稿供部门确认', 'Agent 内测完成 80%']) {
-    assert.equal(ReportFormat.validate('daily', '2026-10-15', daily('2026-10-15', { plan: `❌：${concrete}` })), '');
+    assert.equal(ReportFormat.validate('daily', '2026-10-15', daily('2026-10-15', { plan: concrete })), '');
   }
 });
 

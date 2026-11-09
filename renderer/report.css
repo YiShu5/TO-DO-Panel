@@ -37,33 +37,23 @@ textarea:focus-visible {
   margin: 0 auto;
   padding: 18px 0 14px;
   display: grid;
-  grid-template-rows: auto auto minmax(0, 1fr) auto;
+  grid-template-rows: auto minmax(0, 1fr) auto;
   gap: 12px;
 }
 
 .report-header {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 24px;
-  min-height: 54px;
+  flex-wrap: wrap;
+  gap: 8px 16px;
 }
 
-.report-header > div:first-child { min-width: 0; }
-.report-eyebrow { display: none; }
-
 h1 {
-  margin: 0 0 4px;
-  font-size: clamp(26px, 3vw, 34px);
+  margin: 0;
+  font-size: 22px;
   font-weight: 650;
   letter-spacing: -.04em;
   line-height: 1.15;
-}
-
-.report-subtitle {
-  margin: 0;
-  color: var(--text-2);
-  font-size: 12px;
 }
 
 .report-header-actions {
@@ -71,6 +61,7 @@ h1 {
   flex-wrap: wrap;
   justify-content: flex-end;
   gap: 8px;
+  margin-left: auto;
 }
 
 .quiet-button,
@@ -128,7 +119,7 @@ button:disabled { opacity: .5; cursor: default; }
 
 .report-switcher button {
   min-height: 30px;
-  padding: 5px 20px;
+  padding: 5px 12px;
   border: 0;
   border-radius: 7px;
   background: transparent;
@@ -143,7 +134,7 @@ button:disabled { opacity: .5; cursor: default; }
 
 .report-layout {
   display: grid;
-  grid-template-columns: minmax(0, .95fr) minmax(0, 1.05fr);
+  grid-template-columns: minmax(210px, 26%) minmax(0, 1fr);
   align-items: stretch;
   min-height: 0;
   gap: 16px;
@@ -162,6 +153,52 @@ button:disabled { opacity: .5; cursor: default; }
 .report-editor,
 .report-preview { padding: 18px; overflow: auto; }
 .report-preview { display: flex; flex-direction: column; }
+.report-sources { display: flex; flex-direction: column; }
+.report-sources > .section-heading, .week-sources { flex: 0 0 auto; }
+.report-sources .section-heading { flex-wrap: wrap; gap: 4px 10px; }
+
+.week-sources { display: grid; gap: 6px; margin: 12px 0 0; padding: 0; list-style: none; }
+.week-source {
+  display: flex;
+  width: 100%;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  text-align: left;
+}
+.week-source[aria-current="true"] { border-color: var(--accent-teal); background: var(--surface-3); }
+.week-source-date { color: var(--text-1); font-variant-numeric: tabular-nums; }
+.week-source-state { color: var(--text-2); font-size: 11px; }
+.source-detail { min-height: 60px; overflow: auto; margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--hairline); }
+.source-detail .section-heading { align-items: center; }
+.source-detail pre { white-space: pre-wrap; overflow-wrap: anywhere; color: var(--text-2); font: inherit; }
+.daily-template { margin-bottom: 10px; color: var(--text-2); flex: 0 0 auto; }
+.daily-template summary { cursor: pointer; }
+.template-fields { max-height: 190px; overflow: auto; padding: 4px; }
+.template-fields .quiet-button { margin: 8px 0; }
+.report-footer {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 16px;
+  padding-top: 10px;
+}
+.report-footer .editor-actions { margin: 0 0 0 auto; flex: 0 0 auto; }
+.report-footer .save-status { min-height: 0; margin: 0; }
+.weekly-update {
+  width: min(680px, calc(100% - 32px));
+  max-height: calc(100% - 32px);
+  padding: 18px;
+  border: 1px solid var(--hairline);
+  border-radius: 14px;
+  color: var(--text-1);
+  background: var(--surface-1);
+}
+.weekly-update::backdrop { background: var(--panel-shadow); }
+.weekly-update h2 { margin: 0 0 6px; font-size: 17px; }
+.weekly-update .preview-input { height: min(240px, 45vh); margin-top: 12px; }
+.weekly-update .editor-actions { justify-content: flex-end; }
 
 .section-heading,
 .history-heading {
@@ -222,7 +259,7 @@ button:disabled { opacity: .5; cursor: default; }
 .report-input:focus,
 .preview-input:focus { border-color: var(--accent-teal); }
 .report-plan-input { height: 76px; }
-.preview-input { flex: 1 1 auto; height: auto; min-height: 160px; font-size: 14px; line-height: 1.7; }
+.preview-input { flex: 1 1 auto; height: auto; min-height: 100px; font-size: 14px; line-height: 1.7; }
 
 .editor-note,
 .preview-note { margin: 8px 0 0; color: var(--text-3); font-size: 11px; line-height: 1.5; }
@@ -233,12 +270,12 @@ button:disabled { opacity: .5; cursor: default; }
 .preview-heading .quiet-button { min-height: 30px; padding: 5px 9px; font-size: 11px; }
 .plain-text-badge { padding: 3px 7px; border: 1px solid var(--hairline); border-radius: 6px; color: var(--text-2); font-size: 11px; line-height: 1.5; white-space: nowrap; }
 
-.history-panel { padding: 12px 16px; }
-.history-heading { align-items: center; flex-wrap: wrap; gap: 4px 12px; }
-.history-heading > div { display: flex; align-items: baseline; flex-wrap: wrap; gap: 8px; }
+.history-panel { padding: 8px 16px; }
+.history-heading { align-items: center; justify-content: flex-start; gap: 4px 8px; cursor: pointer; }
+.history-heading::before { content: '▸'; color: var(--text-2); }
+.history-panel[open] .history-heading::before { content: '▾'; }
 .history-heading strong { margin-top: 0; font-size: 13px; }
-.history-heading .section-kicker { display: inline; }
-.vault-path { max-width: 55%; overflow: hidden; color: var(--text-3); font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
+.vault-path { margin-left: auto; max-width: 55%; overflow: hidden; color: var(--text-3); font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
 .history-list { display: flex; align-items: stretch; gap: 8px; margin-top: 8px; padding: 1px 1px 4px; overflow-x: auto; }
 
 .history-list button {
@@ -284,15 +321,16 @@ button:disabled { opacity: .5; cursor: default; }
 
 .toast.visible { opacity: 1; transform: translateY(0); }
 
-@media (max-width: 780px) {
+@media (max-width: 580px) {
   html, body { height: auto; min-height: 100%; }
   body { overflow: auto; }
   .report-shell { width: min(620px, calc(100% - 24px)); height: auto; min-height: 100vh; padding: 18px 0; }
-  .report-header { display: block; }
-  .report-header-actions { justify-content: flex-start; margin-top: 12px; }
+  .report-header-actions { width: 100%; justify-content: flex-start; margin-left: 0; }
   .report-layout { grid-template-columns: 1fr; }
   .report-editor, .report-preview { padding: 16px; }
   .preview-input { min-height: 260px; }
+  .report-footer { flex-wrap: wrap; }
+  .source-detail { max-height: 180px; }
   .vault-path { max-width: 100%; }
 }
 

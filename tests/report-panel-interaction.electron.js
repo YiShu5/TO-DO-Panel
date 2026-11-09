@@ -8,9 +8,11 @@ const electron = require('electron');
 const { app, BrowserWindow, ipcMain } = electron;
 const projectRoot = path.join(__dirname, '..');
 const isolatedUserData = fs.mkdtempSync(path.join(os.tmpdir(), 'to-do-report-exit-test-'));
+const isolatedVault = path.join(fs.realpathSync(isolatedUserData), 'vault');
+fs.mkdirSync(path.join(isolatedVault, '.obsidian'), { recursive: true });
 process.env.TODO_PANEL_USER_DATA = isolatedUserData;
 process.env.TODO_PANEL_REPORT_PREVIEW = '1';
-delete process.env.TODO_PANEL_REPORT_VAULT;
+process.env.TODO_PANEL_REPORT_VAULT = isolatedVault;
 app.setPath('userData', isolatedUserData);
 
 let finishDialog;
@@ -121,22 +123,51 @@ async function main() {
     });
     await expandPanel();
     await openReport();
+    for (const report of [
+      { type: 'daily', key: '2026-10-15', content: '# 自由日报\n✔ 培训资料整理 ing\n\n先记这一段，计划晚点再补。\n' },
+      { type: 'weekly', key: '2026-W42', content: '**本周随记**\n整理资料\n✔ Agent 联调 ing\n' },
+    ]) {
+      const payload = { ...report, vault: isolatedVault, expectedRevision: null, confirmed: true };
+      const saved = await run(`window.reportAPI.save(${JSON.stringify(payload)})`);
+      assert.equal(saved.ok, true, `${report.type} 的自定义正文应允许保存：${JSON.stringify(saved)}`);
+      assert.equal(fs.readFileSync(saved.path, 'utf8'), report.content, '磁盘文件应原样保留正文');
+      const loaded = await run(`window.reportAPI.get(${JSON.stringify({ type: report.type, key: report.key })})`);
+      assert.equal(loaded.ok, true);
+      assert.equal(loaded.content, report.content, '真实存储读回应保留自定义格式与未完成内容');
+      assert.equal((await run(`window.reportAPI.copy(${JSON.stringify(payload)})`)).ok, true);
+      assert.equal(copiedText, report.content, '不要求标题、章节或状态标记，复制正文不改写');
+
+      const externalContent = `${report.content}\n外部编辑：保留这句话`;
+      fs.writeFileSync(saved.path, externalContent, 'utf8');
+      const conflict = await run(`window.reportAPI.save(${JSON.stringify({ ...payload,
+        content: `${report.content}\n过期草稿`, expectedRevision: saved.revision })})`);
+      assert.equal(conflict.error, 'revision_conflict', '放宽格式不能绕过外部修改冲突保护');
+      assert.equal(fs.readFileSync(saved.path, 'utf8'), externalContent, '冲突时不得覆盖外部新内容');
+    }
+    const lastCopiedText = copiedText;
     const rejectedExports = await run(`(async () => {
       const payload = { type: 'daily', key: '2026-10-15', confirmed: true,
-        content: '10月15日工作总结\\n今日艾维利：\\n✅：完成 1 场研发部 AI 培训\\n\\n明日艾维利：' };
-      return {
-        save: await window.reportAPI.save({ ...payload, vault: '', expectedRevision: null }),
-        copy: await window.reportAPI.copy({ ...payload, content: '10月15日工作总结\\n今日艾维利：\\n✔ 研发部培训 ing\\n明日艾维利：\\n❌：完成 Agent 发布上线' }),
-      };
+        vault: ${JSON.stringify(isolatedVault)}, expectedRevision: null, content: '随便写一句' };
+      const results = [];
+      for (const patch of [{ content: '  \\n ' }, { key: '../escape' }, { key: '2026-02-30' },
+        { type: 'unknown' }, { content: 'x'.repeat(1024 * 1024 + 1) }]) {
+        results.push({ save: await window.reportAPI.save({ ...payload, ...patch }),
+          copy: await window.reportAPI.copy({ ...payload, ...patch }) });
+      }
+      return { results,
+        unconfirmed: await window.reportAPI.copy({ ...payload, confirmed: false }),
+        wrongVault: await window.reportAPI.save({ ...payload, vault: '' }) };
     })()`);
-    assert.equal(rejectedExports.save.error, 'invalid_format', '主进程应拒绝缺少明日计划的保存请求');
-    assert.match(rejectedExports.save.message, /明日艾维利.*至少填写一条/);
-    assert.equal(rejectedExports.copy.error, 'invalid_format', '主进程应拒绝非标准状态标记的复制请求');
-    assert.match(rejectedExports.copy.message, /不能使用 ing 或 ✔/);
-    assert.equal(copiedText, null, '不合规正文不得写入剪贴板');
-    const validBody = '10月15日工作总结\n今日艾维利：\n✅：完成 1 场研发部 AI 培训\n\n明日艾维利：\n❌：完成 Agent 发布上线';
+    for (const result of rejectedExports.results) {
+      assert.equal(result.save.error, 'invalid_report', '空正文、非法类型/日期和过大内容仍应拒绝保存');
+      assert.equal(result.copy.error, 'invalid_report', '必要输入边界仍应拒绝复制');
+    }
+    assert.equal(rejectedExports.unconfirmed.error, 'confirmation_required');
+    assert.equal(rejectedExports.wrongVault.error, 'vault_changed');
+    assert.equal(copiedText, lastCopiedText, '被拒绝的请求不得改动剪贴板');
+    const validBody = '10月15日工作总结\n今日艾维利：\n✅：完成 1 场研发部 AI 培训\n\n明日艾维利：\n完成 Agent 发布上线';
     assert.equal((await run(`window.reportAPI.copy({ type: 'daily', key: '2026-10-15', confirmed: true,
-      content: ${JSON.stringify(validBody)} })`)).ok, true, '规范日报应允许复制');
+      content: ${JSON.stringify(validBody)} })`)).ok, true, '今日有状态、明日无状态的规范日报应允许复制');
     assert.equal(copiedText, validBody);
     await focusPanel();
     await run(`(() => {
@@ -145,7 +176,7 @@ async function main() {
       work.value = '✅ 完成 1 场研发部 AI 培训，覆盖 20 人';
       work.dispatchEvent(new Event('input', { bubbles: true }));
       const plan = doc.getElementById('plan-input');
-      plan.value = '❌ 完成 Agent 发布上线，目标覆盖 2 个部门';
+      plan.value = '完成 Agent 发布上线，目标覆盖 2 个部门';
       plan.dispatchEvent(new Event('input', { bubbles: true }));
       const preview = doc.getElementById('preview-input');
       preview.focus();
@@ -205,7 +236,86 @@ async function main() {
     await run(`document.getElementById('report-frame').contentDocument.getElementById('back-to-panel').click()`);
     await waitFor(async () => !await reportVisible()
       && await run(`document.getElementById('tab-home').classList.contains('active')`), '明确返回首页仍应恢复首页');
-    console.log('Report panel interactions passed: tab routing, draft flush/restore, outside blur, dialog guards, return home.');
+    // Use the real IPC and isolated Obsidian files as the first two sources.
+    for (const [key, content] of [
+      ['2026-11-02', '11.2 工作总结\n今日艾维利\n🏃1：验证会议提醒\n自由记录保留\n明日艾维利\n1、只排了一个旧计划'],
+      ['2026-11-06', '11.6 工作总结\n今日艾维利\n✅1、验证会议提醒\n❌2、整理分享稿\n✅ 9:30 财务验收\n下周艾维利\n1、安排交付验收\n3.5 小时整理反馈'],
+    ]) {
+      const result = await run(`window.reportAPI.save(${JSON.stringify({
+        type: 'daily', key, content, vault: isolatedVault, expectedRevision: null, confirmed: true,
+      })})`);
+      assert.equal(result.ok, true);
+    }
+    await openReport();
+    const report = (source) => run(`(async () => {
+      const frame = document.getElementById('report-frame');
+      const doc = frame.contentDocument;
+      const field = id => doc.getElementById(id);
+      const body = field('preview-input');
+      const input = text => { body.value = text; body.dispatchEvent(new frame.contentWindow.Event('input', { bubbles: true })); };
+      ${source}
+    })()`);
+    await report(`await frame.contentWindow.setReportType('weekly', '2026-W46');`);
+    assert.match(await report('return body.value;'), /今日艾维利[\s\S]*本周艾维利[\s\S]*下周艾维利/, '空白的一周仍可编辑三段');
+    await report(`await frame.contentWindow.setReportType('daily', '2026-11-06');
+      doc.querySelector('[data-report-switcher][data-report-type="weekly"]').click();`);
+    await waitFor(() => report(`return !body.disabled && field('source-status').textContent.includes('2/5');`), '首次打开汇报应从真实日报出稿');
+    const original = await report('return body.value;');
+    assert.match(original, /今日艾维利\n✅1、验证会议提醒/);
+    assert.match(original, /本周艾维利[\s\S]*✅ 1、验证会议提醒[\s\S]*自由记录保留/);
+    assert.match(original, /下周艾维利\n1、安排交付验收\n2、3\.5 小时整理反馈\n3、整理分享稿/);
+    assert.match(original, /本周艾维利[\s\S]*9:30 财务验收/);
+    assert.doesNotMatch(original, /旧计划/);
+    assert.equal(await report(`return field('week-sources').querySelectorAll('button').length;`), 5);
+    if (process.env.TODO_REPORT_QA_DIR) {
+      fs.mkdirSync(process.env.TODO_REPORT_QA_DIR, { recursive: true });
+      await run(`document.documentElement.dataset.theme = 'light';
+        document.dispatchEvent(new CustomEvent('notch:themechange', { detail: { theme: 'light' } }));`);
+      await waitFor(() => report(`return doc.documentElement.dataset.theme === 'light'
+        && frame.contentWindow.getComputedStyle(doc.querySelector('[data-report-switcher][data-report-type="weekly"]')).backgroundColor === 'rgb(47, 146, 144)';`), '截图时应已切换为浅色且选中周五汇报');
+      await report(`await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));`);
+      fs.writeFileSync(path.join(process.env.TODO_REPORT_QA_DIR, 'friday-sources.png'), (await panel.webContents.capturePage()).toPNG());
+    }
+    const edited = `${original}\n人工补充：保留这一行`;
+    await report(`input(${JSON.stringify(edited)});
+      doc.querySelector('[data-date="2026-11-02"]').click();`);
+    assert.equal(await report(`return field('source-body').textContent.includes('自由记录保留') && body.value === ${JSON.stringify(edited)};`), true);
+    await report(`field('reload-report').click();`);
+    await waitFor(() => report(`return field('toast').textContent.includes('当前草稿已保留');`), '没有原稿时应提示保留本机草稿');
+    assert.equal(await report('return body.value;'), edited);
+    await report(`doc.querySelector('[data-date="2026-11-03"]').click(); field('edit-source').click();`);
+    await waitFor(() => report(`return !body.disabled && field('daily-date').value === '2026-11-03';`), '缺少的日期可以直接补写');
+    await report(`input('今日艾维利\\n✅ 补记测试记录'); doc.querySelector('[data-report-switcher][data-report-type="weekly"]').click();`);
+    await waitFor(() => report(`return !body.disabled && !field('review-sources').hidden;`), '补记的本机草稿应提示汇报更新');
+    assert.equal(await report('return body.value;'), edited, '补记日报不得覆盖手改的汇报');
+    await report(`field('review-sources').click();`);
+    assert.equal(await report(`return field('weekly-update').open && field('weekly-update-body').value.includes('补记测试记录');`), true);
+    await report(`field('keep-weekly').click(); field('copy-report').click();`);
+    await waitFor(() => copiedText === edited, '复制整份应原样包含手改后的三段');
+    assert.equal(await report(`
+      const storage = frame.contentWindow.Storage.prototype;
+      const write = storage.setItem;
+      storage.setItem = function (key, value) {
+        if (key.startsWith('todo-panel-report-draft-v2:') && !key.includes(':backup:')) throw new Error('test quota');
+        return write.call(this, key, value);
+      };
+      try {
+        input(body.value + '\\n尚未写入的最后一句');
+        field('review-sources').click(); field('apply-weekly').click();
+        return body.value.endsWith('尚未写入的最后一句') && field('toast').textContent.includes('无法备份当前稿');
+      } finally { storage.setItem = write; }
+    `), true, '备份失败不得拿较旧的副本冒充当前稿');
+    await report(`field('review-sources').click(); field('apply-weekly').click();`);
+    assert.equal(await report(`return body.value.includes('补记测试记录') && field('review-sources').hidden;`), true);
+    if (process.env.TODO_REPORT_QA_DIR) {
+      panel.setSize(760, 616);
+      await waitFor(() => report(`return frame.contentWindow.innerWidth <= 760;`), '报告应适应窄窗口');
+      await report(`doc.querySelector('[data-date="2026-11-02"]').click(); body.scrollTop = 0;`);
+      assert.equal(await report(`return doc.documentElement.scrollWidth <= frame.contentWindow.innerWidth
+        && field('copy-report').getBoundingClientRect().bottom <= frame.contentWindow.innerHeight;`), true, '窄窗口保持复制按钮可见');
+      fs.writeFileSync(path.join(process.env.TODO_REPORT_QA_DIR, 'friday-sources-narrow.png'), (await panel.webContents.capturePage()).toPNG());
+    }
+    console.log('Report panel interactions passed: Friday draft, source review, update protection, exact copy, free-format storage, and panel routing.');
   } finally {
     if (panel.webContents.debugger.isAttached()) panel.webContents.debugger.detach();
     outside.destroy();

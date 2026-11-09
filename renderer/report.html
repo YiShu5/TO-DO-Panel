@@ -15,11 +15,11 @@
   <body>
     <main class="report-shell">
       <header class="report-header">
-        <div>
-          <p class="report-eyebrow">TO-DO PANEL · PERSONAL LOG</p>
-          <h1 id="report-title">日报</h1>
-          <p class="report-subtitle">写完、看一眼，再保存到你的 Obsidian 知识库。</p>
-        </div>
+        <h1 id="report-title">日报</h1>
+        <nav class="report-switcher" aria-label="报告类型">
+          <button type="button" data-report-switcher data-report-type="daily">日报</button>
+          <button type="button" data-report-switcher data-report-type="weekly">周五汇报</button>
+        </nav>
         <div class="report-header-actions">
           <button class="quiet-button" id="back-to-panel" type="button">返回首页</button>
           <button class="quiet-button" id="open-vault" type="button">打开 Obsidian 文件夹</button>
@@ -28,17 +28,12 @@
         </div>
       </header>
 
-      <nav class="report-switcher" aria-label="报告类型">
-        <button type="button" data-report-switcher data-report-type="daily">日报</button>
-        <button type="button" data-report-switcher data-report-type="weekly">周报</button>
-      </nav>
-
       <div class="report-layout">
-        <section class="report-editor" aria-labelledby="editor-title">
+        <aside class="report-editor report-sources" aria-labelledby="editor-title">
           <div class="section-heading">
             <div>
-              <span class="section-kicker" id="editor-title">先写原始记录</span>
-              <strong id="period-label">今天</strong>
+              <strong id="editor-title">本周日报</strong>
+              <span class="section-kicker" id="period-label"></span>
             </div>
             <label class="period-control" id="daily-period">
               <span>日期</span>
@@ -49,52 +44,71 @@
               <input id="weekly-date" type="week" />
             </label>
           </div>
+          <ul id="week-sources" class="week-sources" aria-label="周一到周五日报"></ul>
+          <div id="source-detail" class="source-detail" hidden>
+            <div class="section-heading">
+              <strong id="source-title"></strong>
+              <button class="quiet-button" id="edit-source" type="button">编辑这天</button>
+            </div>
+            <pre id="source-body" tabindex="0"></pre>
+          </div>
+        </aside>
 
+        <section class="report-preview" aria-labelledby="preview-title">
+          <div class="section-heading preview-heading">
+            <div>
+              <strong id="preview-title">日报正文</strong>
+              <span id="source-status" class="section-kicker" role="status"></span>
+            </div>
+            <button class="quiet-button" id="review-sources" type="button" hidden>查看更新</button>
+          </div>
+          <details id="daily-template" class="daily-template">
+            <summary>按艾维利模板填写</summary>
+            <div class="template-fields">
           <label class="field-label" for="work-input" id="work-label">今日艾维利</label>
           <textarea id="work-input" class="report-input" placeholder="✅ 完成1场销售部门的AI培训&#10;🚶‍♂️ Agent发布上线：已完成联调，待验收" aria-describedby="report-rules"></textarea>
 
           <div id="summary-field" hidden>
             <label class="field-label" for="summary-input">本周工作总结</label>
-            <textarea id="summary-input" class="report-input" placeholder="✅ 完成2场AI培训，覆盖销售和运营部门&#10;🚶‍♂️ Agent发布上线：已通过测试，待发布" aria-describedby="report-rules"></textarea>
+            <textarea id="summary-input" class="report-input" placeholder="完成2场AI培训，覆盖销售和运营部门&#10;Agent发布上线：已通过测试，待发布" aria-describedby="report-rules"></textarea>
           </div>
 
           <label class="field-label" for="plan-input" id="plan-label">明日艾维利</label>
-          <textarea id="plan-input" class="report-input report-plan-input" placeholder="❌ 完成Agent的发布上线&#10;🚶‍♂️ AI培训材料：补齐3个实操案例" aria-describedby="report-rules"></textarea>
+          <textarea id="plan-input" class="report-input report-plan-input" placeholder="完成Agent的发布上线&#10;AI培训材料：补齐3个实操案例" aria-describedby="report-rules"></textarea>
 
-          <p class="editor-note" id="report-rules">每行写“工作 + 具体目标、结果或进度”，并标注 ✅ 完成 / 🚶‍♂️ 进行中 / ❌ 未完成。不使用 ing、✔；不自动猜测完成状态。</p>
-          <p class="editor-note" id="weekend-note" hidden>明天是周末：请补充本周工作总结，并填写下周一艾维利。</p>
-          <div class="editor-actions">
-            <button class="primary-button" id="save-report" type="button">保存到 Obsidian</button>
-            <button class="secondary-button" id="copy-report" type="button">复制正文</button>
-          </div>
-          <p class="save-status" id="save-status" role="status" aria-live="polite"></p>
-        </section>
-
-        <section class="report-preview" aria-labelledby="preview-title">
-          <div class="section-heading preview-heading">
-            <div>
-              <span class="section-kicker">确认后再保存</span>
-              <strong id="preview-title">正文预览</strong>
+          <p class="editor-note" id="report-rules">格式建议：今日事项可用 ✅ / 🚶‍♂️ / ❌ 标注进度，计划和总结直接写内容。各项可留空，也可在右侧自由书写；不影响保存或复制。</p>
+          <p class="editor-note" id="weekend-note" hidden>明天是周末：可补充本周总结和下周一计划，也可以先留空。</p>
+              <button class="quiet-button" id="regenerate-report" type="button">应用到正文</button>
             </div>
-            <span class="plain-text-badge">纯文本</span>
-            <button class="quiet-button" id="regenerate-report" type="button">按左侧重新生成</button>
+          </details>
+          <textarea id="preview-input" class="preview-input" aria-label="报告正文" placeholder="直接写正文，支持 Markdown"></textarea>
+          <div class="report-footer">
+            <p class="save-status" id="save-status" role="status" aria-live="polite"></p>
+            <div class="editor-actions">
+              <button class="secondary-button" id="save-report" type="button">保存到 Obsidian</button>
+              <button class="primary-button" id="copy-report" type="button">复制正文</button>
+            </div>
           </div>
-          <textarea id="preview-input" class="preview-input" aria-label="报告正文预览"></textarea>
-          <p class="preview-note">可以直接在这里微调，保存和复制都会以这份正文为准。</p>
         </section>
       </div>
 
-      <section class="history-panel" aria-labelledby="history-title">
-        <div class="history-heading">
-          <div>
-            <span class="section-kicker">Obsidian 历史</span>
-            <strong id="history-title">已保存版本</strong>
-          </div>
+      <details class="history-panel">
+        <summary class="history-heading">
+          <strong>Obsidian 已保存版本</strong>
           <span class="vault-path" id="vault-path">读取中…</span>
-        </div>
+        </summary>
         <div class="history-list" id="history-list"><p class="empty-history">还没有保存记录。</p></div>
-      </section>
+      </details>
     </main>
+    <dialog id="weekly-update" class="weekly-update" aria-labelledby="weekly-update-title">
+      <h2 id="weekly-update-title">按最新日报生成的新草稿</h2>
+      <p class="section-kicker">可以从新草稿复制部分内容，也可以采用整份。采用时会备份当前正文。</p>
+      <textarea id="weekly-update-body" class="preview-input" readonly aria-label="更新后的周五草稿"></textarea>
+      <div class="editor-actions">
+        <button class="secondary-button" id="keep-weekly" type="button">保留当前稿</button>
+        <button class="primary-button" id="apply-weekly" type="button">采用新草稿</button>
+      </div>
+    </dialog>
     <div class="toast" id="toast" role="status" aria-live="polite" aria-hidden="true"></div>
     <script src="report-format.js"></script>
     <script src="report.js"></script>

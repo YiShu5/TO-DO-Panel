@@ -26,6 +26,12 @@ const openVaultButton = document.getElementById('open-vault');
 const chooseVaultButton = document.getElementById('choose-vault');
 const backToPanelButton = document.getElementById('back-to-panel');
 const switcherButtons = Array.from(document.querySelectorAll('[data-report-switcher]'));
+const weekSourcesEl = document.getElementById('week-sources');
+const sourceDetail = document.getElementById('source-detail');
+const sourceStatus = document.getElementById('source-status');
+const reviewSources = document.getElementById('review-sources');
+const weeklyUpdate = document.getElementById('weekly-update');
+const weeklyUpdateBody = document.getElementById('weekly-update-body');
 
 let reportType = new URLSearchParams(location.search).get('type') === WEEKLY ? WEEKLY : DAILY;
 let toastTimer = null;
@@ -36,6 +42,9 @@ let generation = 0;
 let historyGeneration = 0;
 let loading = true;
 let saving = false;
+let weekSources = { days: [], items: [], signature: '', failed: false };
+let draftSourceSignature = null;
+let selectedSource = '';
 
 function reportApi() { return window.reportAPI || window.parent?.PanelReport?.api || {}; }
 
@@ -90,15 +99,92 @@ function readDraft(target) {
 }
 
 function writeDraft() {
-  if (!scope || loading) return;
+  if (!scope || loading) return false;
   const value = { key: scope.key, work: workInput.value, plan: planInput.value,
     summary: summaryInput.value, formatVersion: 3,
-    preview: previewInput.value, revision: currentRevision, auto: previewInput.dataset.auto === 'true' };
-  try { localStorage.setItem(draftKey(scope), JSON.stringify(value)); }
-  catch (error) { saveStatusEl.textContent = '本机草稿未能保存，请复制正文备份。'; }
+    preview: previewInput.value, revision: currentRevision, auto: previewInput.dataset.auto === 'true',
+    ...(scope.type === WEEKLY ? { sourceSignature: draftSourceSignature } : {}) };
+  try {
+    localStorage.setItem(draftKey(scope), JSON.stringify(value));
+    return true;
+  } catch (error) {
+    saveStatusEl.textContent = '本机草稿未能保存，请复制正文备份。';
+    return false;
+  }
 }
 
 function currentKey() { return reportType === DAILY ? dailyDateEl.value : weeklyDateEl.value; }
+
+function weekForDate(key) {
+  return window.ReportFormat.weekKey(new Date(`${key}T12:00:00`));
+}
+
+async function readWeekSources(target) {
+  const week = target.type === WEEKLY ? target.key : weekForDate(target.key);
+  const days = window.ReportFormat.weekdays(week);
+  const saved = target.vault && days.length
+    ? await reportApi().weeklySources?.({ weekKey: week }).catch(() => null) : null;
+  const byDate = new Map((saved?.items || []).map(item => [item.key, item]));
+  const items = [];
+  let hash = 2166136261;
+  for (const key of days) {
+    const file = byDate.get(key);
+    const local = readDraft({ vault: target.vault, type: DAILY, key });
+    const localUsable = (!file || local?.revision === file.revision)
+      && window.ReportFormat.hasReportContent(local?.preview);
+    const content = localUsable ? local.preview : file?.content;
+    if (!window.ReportFormat.hasReportContent(content)) continue;
+    items.push({ key, content, local: localUsable && content !== file?.content });
+    // Keep only a lightweight change detector in the weekly draft, not another
+    // copy of all five daily bodies. This is not used for revision checks.
+    for (const character of `${key}\0${content}\0`) {
+      hash = Math.imul(hash ^ character.codePointAt(0), 16777619);
+    }
+  }
+  return { days, items, signature: String(hash >>> 0), failed: Boolean(target.vault && days.length && !saved?.ok) };
+}
+
+function dateLabel(key) {
+  return `${Number(key.slice(5, 7))}/${Number(key.slice(8, 10))}`;
+}
+
+function renderWeekSources() {
+  const { days, items, failed, signature } = weekSources;
+  const weekdays = ['周一', '周二', '周三', '周四', '周五'];
+  const byDate = new Map(items.map(item => [item.key, item]));
+  const activeDate = reportType === DAILY ? currentKey() : selectedSource;
+  weekSourcesEl.replaceChildren(...days.map((key, index) => {
+    const li = document.createElement('li');
+    const button = document.createElement('button');
+    const label = document.createElement('strong');
+    const state = document.createElement('span');
+    button.type = 'button';
+    button.className = 'quiet-button week-source';
+    button.dataset.date = key;
+    if (key === activeDate) button.setAttribute('aria-current', 'true');
+    label.className = 'week-source-date';
+    label.textContent = `${weekdays[index]} · ${dateLabel(key)}`;
+    state.className = 'week-source-state';
+    state.textContent = byDate.get(key)?.local ? '本机草稿' : byDate.has(key) ? '已记录' : failed ? '待核对' : '未记录';
+    button.append(label, state);
+    li.append(button);
+    return li;
+  }));
+  periodLabelEl.textContent = days.length ? `${dateLabel(days[0])} – ${dateLabel(days[4])}` : '';
+  const detailKey = reportType === WEEKLY && days.includes(selectedSource) ? selectedSource : '';
+  sourceDetail.hidden = !detailKey;
+  if (detailKey) {
+    document.getElementById('source-title').textContent = `${dateLabel(detailKey)} 日报`;
+    document.getElementById('source-body').textContent = byDate.get(detailKey)?.content || (failed ? '暂时读不到这天的日报。' : '这天还没有记录。');
+  }
+  const changed = reportType === WEEKLY && !failed && draftSourceSignature !== null && draftSourceSignature !== signature;
+  reviewSources.hidden = reportType !== WEEKLY || failed || !items.length || (draftSourceSignature !== null && !changed);
+  sourceStatus.textContent = reportType === DAILY ? `${dateLabel(currentKey())} · 正文可自由书写`
+    : changed ? `日报来源有变化 · 当前有 ${items.length}/5 天 · 已保留你的草稿`
+      : items.length ? `${draftSourceSignature === null ? '可用' : '草稿来源'} ${items.length}/5 篇日报 · ${items.map(item => dateLabel(item.key)).join('、')}`
+        : '本周还没有可汇总的日报，可以先写草稿';
+  if (failed) sourceStatus.textContent += ' · Obsidian 来源暂时读不到';
+}
 
 function showToast(message) {
   if (!toastEl) return;
@@ -125,20 +211,29 @@ function updatePreview(force = false) {
 function updateLabels() {
   const weekly = reportType === WEEKLY;
   const context = window.ReportFormat.dailyContext(dailyDateEl.value);
-  titleEl.textContent = weekly ? '周报' : '日报';
+  titleEl.textContent = weekly ? '周五汇报' : '日报';
   document.title = `${weekly ? '周报' : '日报'} · TO-DO Panel`;
-  periodLabelEl.textContent = weekly ? '这一周' : '今天';
+  document.getElementById('preview-title').textContent = weekly ? '周五汇报正文' : '日报正文';
+  document.getElementById('daily-template').hidden = weekly;
+  copyButton.textContent = weekly ? '复制整份' : '复制正文';
   dailyPeriodEl.hidden = weekly;
   weeklyPeriodEl.hidden = !weekly;
   workLabelEl.textContent = weekly ? '本周工作进展' : '今日艾维利';
   planLabelEl.textContent = weekly ? '下周计划' : context.planHeading;
   summaryField.hidden = weekly || !context.requiresSummary;
   weekendNote.hidden = weekly || !context.requiresSummary;
-  weekendNote.textContent = `明天是周末：请补充本周工作总结，并填写下周一（${context.nextWorkdayKey}）的艾维利。`;
+  weekendNote.textContent = `明天是周末：可补充本周总结和下周一（${context.nextWorkdayKey}）计划，也可以先留空。`;
   workInput.placeholder = weekly
     ? '✅ 完成2场AI培训，覆盖销售和运营部门\n🚶‍♂️ Agent发布上线：已完成联调，待验收'
     : '✅ 完成1场销售部门的AI培训\n🚶‍♂️ Agent发布上线：已完成联调，待验收';
-  switcherButtons.forEach((button) => button.classList.toggle('active', button.dataset.reportType === reportType));
+  document.getElementById('report-rules').textContent = weekly
+    ? '格式建议：本周工作可用 ✅ / 🚶‍♂️ / ❌ 标注进度，下周计划直接写内容。各项可留空，也可在右侧自由书写；不影响保存或复制。'
+    : '格式建议：今日事项可用 ✅ / 🚶‍♂️ / ❌ 标注进度，明日、下周一计划和本周总结直接写内容。各项可留空，也可在右侧自由书写；不影响保存或复制。';
+  switcherButtons.forEach((button) => {
+    const active = button.dataset.reportType === reportType;
+    button.classList.toggle('active', active);
+    button.setAttribute('aria-pressed', String(active));
+  });
 }
 
 function syncControls() {
@@ -149,6 +244,9 @@ function syncControls() {
   document.getElementById('reload-report').disabled = loading || saving || !vault;
   document.getElementById('regenerate-report').disabled = loading || saving;
   historyListEl.inert = saving;
+  weekSourcesEl.inert = loading || saving;
+  reviewSources.disabled = loading || saving;
+  document.getElementById('edit-source').disabled = loading || saving;
   openVaultButton.disabled = !vault;
 }
 
@@ -162,38 +260,63 @@ function setBody(content) {
 }
 
 async function loadReport(key = currentKey(), { fromDisk = false, version } = {}) {
-  if (saving || !key) return;
+  if (saving || !key || (fromDisk && loading)) return false;
+  if (weeklyUpdate.open) weeklyUpdate.close();
   writeDraft();
   const token = ++generation;
   const target = { vault, type: reportType, key };
+  let original = null;
+  if (fromDisk) {
+    original = await reportApi().get?.({ type: target.type, key, version }).catch(() => null);
+    if (token !== generation || saving) return false;
+    if (!original?.ok || !original.exists) {
+      showToast(original?.ok ? '还没有 Obsidian 原稿，当前草稿已保留' : '读取原稿失败，当前草稿已保留');
+      return false;
+    }
+    try {
+      backupDraft();
+      if (scope && draftKey(target) !== draftKey(scope)) backupDraft(target);
+    } catch (error) {
+      showToast('无法备份当前稿，请先复制正文');
+      return false;
+    }
+  }
   scope = target;
   (reportType === DAILY ? dailyDateEl : weeklyDateEl).value = key;
   loading = true;
   syncControls();
   currentRevision = null;
+  draftSourceSignature = null;
+  selectedSource = '';
+  weekSourcesEl.replaceChildren();
+  sourceDetail.hidden = reviewSources.hidden = true;
+  sourceStatus.textContent = '正在读取本周日报…';
   workInput.value = planInput.value = summaryInput.value = previewInput.value = '';
+  previewInput.dataset.auto = 'false';
   previewInput.removeAttribute('aria-invalid');
   saveStatusEl.textContent = '';
   updateLabels();
   const draft = fromDisk ? null : readDraft(target);
-  const latest = vault ? await reportApi().get({ type: target.type, key }).catch(() => null) : null;
+  const [latest, sources] = await Promise.all([
+    fromDisk && version == null ? original : vault ? reportApi().get({ type: target.type, key }).catch(() => null) : null,
+    readWeekSources(target),
+  ]);
   if (token !== generation) return;
-  let historical = null;
-  if (version != null) {
-    historical = await reportApi().get({ type: target.type, key, version }).catch(() => null);
-    if (token !== generation) return;
-  }
+  weekSources = sources;
+  const historical = version != null ? original : null;
   if (historical?.ok && historical.exists) {
     setBody(historical.content);
     currentRevision = latest?.revision || null;
-  } else if (draft?.preview) {
+  } else if (draft && (draft.preview || draft.auto === false || typeof draft.sourceSignature === 'string')
+    && !(target.type === WEEKLY && draft.auto && !window.ReportFormat.hasReportContent(draft.preview) && !latest?.exists)) {
     workInput.value = draft.work || '';
     planInput.value = draft.plan || '';
     summaryInput.value = draft.summary || '';
     previewInput.value = draft.preview;
+    draftSourceSignature = typeof draft.sourceSignature === 'string' ? draft.sourceSignature : null;
     previewInput.dataset.auto = draft.auto && draft.formatVersion === 3 ? 'true' : 'false';
     if (draft.formatVersion !== 3) {
-      saveStatusEl.textContent = '已保留旧格式草稿；补齐状态和计划后，点击“按左侧重新生成”应用新规范。';
+      saveStatusEl.textContent = '已保留旧格式草稿，可直接保存或复制。';
     }
     // A draft's base revision must never be replaced with a newer disk revision.
     currentRevision = Object.hasOwn(draft, 'revision') ? draft.revision
@@ -201,7 +324,7 @@ async function loadReport(key = currentKey(), { fromDisk = false, version } = {}
     if ((latest?.revision || null) !== currentRevision) {
       saveStatusEl.textContent = 'Obsidian 原稿已变化。已保留本机草稿；复制备份或载入原稿后再编辑。';
     }
-    if (draft.auto && draft.formatVersion === 3 && !latest?.exists) {
+    if (target.type === DAILY && draft.auto && draft.formatVersion === 3 && !latest?.exists) {
       const activity = await reportApi().getActivitySnapshot?.({ type: target.type, key });
       if (token !== generation) return;
       if (activity?.ok && activity.work) {
@@ -220,13 +343,15 @@ async function loadReport(key = currentKey(), { fromDisk = false, version } = {}
   } else if (latest?.ok && latest.exists) {
     setBody(latest.content);
     currentRevision = latest.revision;
+  } else if (target.type === WEEKLY) {
+    const friday = sources.days[4];
+    if (friday) {
+      setBody(window.ReportFormat.buildFridayDraft(friday, sources.items));
+      draftSourceSignature = sources.signature;
+      if (!sources.items.length) previewInput.dataset.auto = 'true';
+    }
   } else {
     previewInput.dataset.auto = 'true';
-    if (target.type === WEEKLY && vault && latest?.ok) {
-      const sources = await reportApi().weeklySources({ weekKey: key }).catch(() => null);
-      if (token !== generation) return;
-      if (sources?.ok) workInput.value = window.ReportFormat.summarizeSources(sources.items || []);
-    }
     const activity = await reportApi().getActivitySnapshot?.({ type: target.type, key });
     if (token !== generation) return;
     if (activity?.ok && activity.work) {
@@ -243,17 +368,22 @@ async function loadReport(key = currentKey(), { fromDisk = false, version } = {}
   }
   if (!vault) saveStatusEl.textContent = '请先选择你的 Obsidian 知识库；未选择时也可写草稿和复制。';
   else if (!latest?.ok) saveStatusEl.textContent = '未能读取原稿，请检查知识库路径后重新载入。';
-  if (version != null && !historical?.exists) showToast('这份历史版本暂时读不到');
   loading = false;
   syncControls();
+  renderWeekSources();
   writeDraft();
+  return true;
 }
 
-async function setReportType(nextType) {
+async function setReportType(nextType, requestedKey) {
   if (saving) return;
   writeDraft();
+  const previous = scope;
   reportType = nextType === WEEKLY ? WEEKLY : DAILY;
-  const key = (reportType === DAILY ? dailyDateEl : weeklyDateEl).value || defaultDraft(reportType).key;
+  let key = requestedKey || currentKey() || defaultDraft(reportType).key;
+  if (!requestedKey && previous?.type === DAILY && reportType === WEEKLY) key = weekForDate(previous.key);
+  if (!requestedKey && previous?.type === WEEKLY && reportType === DAILY
+    && weekForDate(key) !== previous.key) key = window.ReportFormat.weekdays(previous.key)[4] || key;
   await Promise.all([loadReport(key), loadHistory()]);
 }
 
@@ -301,26 +431,22 @@ async function loadHistory() {
 
 async function openHistoryRow(button) {
   if (saving) return;
-  backupDraft();
   await loadReport(button.dataset.key, { fromDisk: true,
     version: button.dataset.version ? Number(button.dataset.version) : undefined });
 }
 
 async function saveReport() {
   if (loading || saving || !vault) return;
-  const content = previewInput.value.trim() || buildBody(reportType, currentKey(), workInput.value, planInput.value);
-  if (!content || !currentKey()) return showToast('请先填写报告内容');
-  const formatError = window.ReportFormat?.validate?.(reportType, currentKey(), content);
-  if (formatError) {
-    return showFormatError(formatError);
-  }
+  // The editable body is authoritative; never replace an intentionally cleared
+  // body with a generated template during save.
+  const content = previewInput.value;
+  if (!content.trim() || !currentKey()) return showToast('请先填写报告内容');
   saving = true;
   syncControls();
   const result = await reportApi().save?.({ vault, type: reportType, key: currentKey(), content, expectedRevision: currentRevision, confirmed: true }).catch(() => null);
   saving = false;
   syncControls();
   if (!result?.ok) {
-    if (result?.error === 'invalid_format') return showFormatError(result.message);
     if (result?.error === 'conflict' || result?.error === 'revision_conflict') {
       saveStatusEl.textContent = 'Obsidian 里的原稿已变化，请重新载入后再保存。';
       return showToast('检测到外部修改，未覆盖原稿');
@@ -332,40 +458,50 @@ async function saveReport() {
   previewInput.dataset.auto = 'false';
   currentRevision = result.revision || currentRevision;
   writeDraft();
-  saveStatusEl.textContent = result.unchanged ? '正文未变化，无需新增版本'
-    : result.archivedVersion ? `已保存当前稿，旧稿保留为 v${result.archivedVersion}` : '已保存首个版本';
+  if (reportType === DAILY) {
+    const state = weekSourcesEl.querySelector('[aria-current="true"] .week-source-state');
+    if (state) state.textContent = '已记录';
+  }
+  showExportStatus(result.unchanged ? '正文未变化，无需新增版本'
+    : result.archivedVersion ? `已保存当前稿，旧稿保留为 v${result.archivedVersion}` : '已保存首个版本', content);
   showToast('已写入 Obsidian');
   await loadHistory();
 }
 
 async function copyReport() {
   if (loading || saving) return;
-  const content = previewInput.value.trim();
-  if (!content) return showToast('没有可复制的正文');
-  const formatError = window.ReportFormat.validate(reportType, currentKey(), content);
-  if (formatError) return showFormatError(formatError);
+  const content = previewInput.value;
+  if (!content.trim()) return showToast('没有可复制的正文');
+  const target = scope;
   const copied = await reportApi().copy?.({ type: reportType, key: currentKey(), revision: currentRevision, content, confirmed: true }).catch(() => false);
-  if (copied?.error === 'invalid_format') return showFormatError(copied.message);
-  if (copied?.ok === true || copied === true) return showToast('正文已复制，可直接粘贴到微信');
+  if (scope !== target) return;
+  if (copied?.ok === true || copied === true) {
+    showExportStatus(reportType === WEEKLY ? '今日、本周、下周已复制' : '正文已复制', content);
+    return;
+  }
   showToast('复制失败，请重试');
 }
 
-function showFormatError(message) {
-  saveStatusEl.textContent = message;
-  previewInput.setAttribute('aria-invalid', 'true');
-  previewInput.focus();
-  showToast(message);
+function showExportStatus(message, content) {
+  // Writing conventions are advisory, never a submission gate or focus trap.
+  const suggestion = reportType === DAILY ? window.ReportFormat?.validate?.(reportType, currentKey(), content) : '';
+  saveStatusEl.textContent = suggestion
+    ? `${message}。格式参考（可忽略）：${suggestion}` : message;
 }
 
 [workInput, planInput, summaryInput].forEach((input) => input.addEventListener('input', () => {
   previewInput.removeAttribute('aria-invalid');
   updatePreview(false);
-  if (previewInput.dataset.auto === 'false') saveStatusEl.textContent = '已保留手动正文。如需采用左侧修改，请点击“按左侧重新生成”。';
+  if (previewInput.dataset.auto === 'false') saveStatusEl.textContent = '正文已保留。要使用模板里的内容，请点“应用到正文”。';
 }));
 previewInput.addEventListener('input', () => {
   previewInput.removeAttribute('aria-invalid');
   previewInput.dataset.auto = 'false';
   writeDraft();
+  if (reportType === DAILY) {
+    const state = weekSourcesEl.querySelector('[aria-current="true"] .week-source-state');
+    if (state && window.ReportFormat.hasReportContent(previewInput.value)) state.textContent = '本机草稿';
+  }
 });
 dailyDateEl.addEventListener('change', () => loadReport(dailyDateEl.value));
 weeklyDateEl.addEventListener('change', () => loadReport(weeklyDateEl.value));
@@ -376,6 +512,38 @@ historyListEl.addEventListener('click', (event) => {
   if (button) void openHistoryRow(button);
 });
 switcherButtons.forEach((button) => button.addEventListener('click', () => setReportType(button.dataset.reportType)));
+weekSourcesEl.addEventListener('click', (event) => {
+  const button = event.target.closest('button[data-date]');
+  if (!button || loading || saving) return;
+  const key = button.dataset.date;
+  if (reportType === DAILY) {
+    if (key !== currentKey()) void loadReport(key);
+    return;
+  }
+  selectedSource = key;
+  renderWeekSources();
+  weekSourcesEl.querySelector('[aria-current="true"]')?.focus({ preventScroll: true });
+});
+document.getElementById('edit-source').addEventListener('click', () => {
+  if (selectedSource) void setReportType(DAILY, selectedSource);
+});
+reviewSources.addEventListener('click', () => {
+  if (loading || saving || !weekSources.items.length) return;
+  weeklyUpdateBody.value = window.ReportFormat.buildFridayDraft(weekSources.days[4], weekSources.items);
+  weeklyUpdate.showModal();
+});
+document.getElementById('keep-weekly').addEventListener('click', () => weeklyUpdate.close());
+document.getElementById('apply-weekly').addEventListener('click', () => {
+  try { backupDraft(); }
+  catch (error) { weeklyUpdate.close(); showToast('无法备份当前稿，请先复制正文'); return; }
+  setBody(weeklyUpdateBody.value);
+  draftSourceSignature = weekSources.signature;
+  const stored = writeDraft();
+  renderWeekSources();
+  if (stored) saveStatusEl.textContent = '已采用新草稿，上一版已备份';
+  weeklyUpdate.close();
+  previewInput.focus();
+});
 openVaultButton.addEventListener('click', () => reportApi().openVault?.());
 chooseVaultButton.addEventListener('click', async () => {
   if (saving) return;
@@ -395,22 +563,24 @@ chooseVaultButton.addEventListener('click', async () => {
 });
 reportApi().onFocusType?.(setReportType);
 
-function backupDraft() {
-  if (loading || !scope) return;
-  writeDraft();
-  const raw = localStorage.getItem(draftKey(scope));
-  if (raw) localStorage.setItem(`${draftKey(scope)}:backup:${Date.now()}`, raw);
+function backupDraft(target = scope) {
+  if (loading || !target) return;
+  if (!writeDraft()) throw new Error('Could not persist current draft before backup');
+  const key = draftKey(target);
+  const raw = localStorage.getItem(key);
+  if (raw) localStorage.setItem(`${key}:backup:${Date.now()}`, raw);
 }
 document.getElementById('reload-report').addEventListener('click', async () => {
-  backupDraft();
-  await loadReport(currentKey(), { fromDisk: true });
-  showToast('已载入原稿，之前的草稿已保留在本机备份中');
+  if (await loadReport(currentKey(), { fromDisk: true })) {
+    showToast('已载入原稿，之前的草稿已保留在本机备份中');
+  }
 });
 document.getElementById('regenerate-report').addEventListener('click', () => {
   if (loading || saving) return;
-  backupDraft();
+  try { backupDraft(); }
+  catch (error) { showToast('无法备份当前稿，请先复制正文'); return; }
   updatePreview(true);
-  saveStatusEl.textContent = '已按左侧重新生成，之前的正文已备份';
+  saveStatusEl.textContent = '已应用模板，之前的正文已备份';
 });
 document.addEventListener('focusin', () => window.parent?.PanelReport?.setTextEntryActive(
   document.activeElement?.matches('textarea, input') === true));
@@ -422,7 +592,7 @@ const ready = (async () => {
   await setReportType(reportType);
 })();
 window.ReportPanel = {
-  setType: async (type) => { await ready; return setReportType(type); },
+  setType: async (type) => { await ready; return setReportType(type, defaultDraft(type).key); },
   flushDraft: writeDraft,
   ready,
 };

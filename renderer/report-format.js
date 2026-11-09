@@ -2,11 +2,12 @@
   if (typeof module === 'object' && module.exports) module.exports = factory();
   else root.ReportFormat = factory();
 })(typeof globalThis !== 'undefined' ? globalThis : this, function () {
-  const STATUS = /^(✅|🚶‍♂️|🚶‍♂|🚶|❌)\s*[：:]?\s*(.*)$/u;
+  const IN_PROGRESS = '🚶‍♂️';
+  const STATUS = /^(✅|[🚶🏃](?:[🏻-🏿])?(?:\u200D[♂♀])?\uFE0F?|❌)\s*[：:]?\s*(.*)$/u;
   const CANONICAL_STATUS = /^(✅|🚶‍♂️|❌)\s*[：:]?\s*(.*)$/u;
   const ING = /(^|[^a-zA-Z0-9_])ing(?=$|[^a-zA-Z0-9_])/gi;
   const FORBIDDEN_ING = /(^|[^a-zA-Z0-9_])ing(?=$|[^a-zA-Z0-9_])/i;
-  const PLAN_HEADINGS = ['明日艾维利', '下周一艾维利', '明日计划', '下周计划'];
+  const PLAN_HEADINGS = ['明日艾维利', '下周一艾维利', '明日计划', '下周计划', '下周艾维利'];
 
   function dateKey(date = new Date()) {
     return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
@@ -38,36 +39,42 @@
   function normalizeLine(line) {
     const normalized = line.replace(/✔\uFE0F?/gu, '✅').replace(ING, '$1进行中');
     const explicit = normalized.match(STATUS);
-    // Do not infer status from verbs, even “完成”. Missing markers are validated
-    // at save/copy time rather than inventing completion or progress.
+    // Do not infer status from verbs, even “完成”. Missing markers produce only
+    // optional writing advice, never a save/copy restriction.
     if (!explicit) return normalized;
-    const marker = explicit[1].startsWith('🚶') ? '🚶‍♂️' : explicit[1];
+    const marker = /^[🚶🏃]/u.test(explicit[1]) ? IN_PROGRESS : explicit[1];
     return `${marker}：${explicit[2].trim()}`;
+  }
+  function plainLine(line) {
+    // Plans and the weekly recap describe goals/results, not completion checkboxes.
+    const normalized = normalizeLine(line);
+    const explicit = normalized.match(CANONICAL_STATUS);
+    return explicit ? explicit[2].trim() : normalized;
   }
   function titleFor(type, key) {
     return type === 'weekly' ? '本周工作进展' : `${Number(String(key).slice(5, 7))}月${Number(String(key).slice(8, 10))}日工作总结`;
   }
   function build({ type, key, work, plan, summary }) {
     const workLines = splitItems(work).map(normalizeLine);
-    const planLines = splitItems(plan).map(normalizeLine);
+    const planLines = splitItems(plan).map(plainLine);
     if (type === 'weekly') return ['本周工作进展', ...workLines, '', '下周计划', ...planLines].join('\n');
     const context = dailyContext(key);
     const body = [titleFor(type, key), '今日艾维利：', ...workLines];
-    if (context.requiresSummary) body.push('', '本周工作总结：', ...splitItems(summary).map(normalizeLine));
+    if (context.requiresSummary) body.push('', '本周工作总结：', ...splitItems(summary).map(plainLine));
     body.push('', `${context.planHeading}：`, ...planLines);
     return body.join('\n');
   }
-  function headingOf(line) { return line.trim().replace(/[：:]\s*$/, ''); }
+  function headingOf(line) { return line.trim().replace(/^#{1,6}\s+/, '').replace(/[：:]\s*$/, ''); }
   function parse(body) {
-    const lines = String(body || '').replace(/\r\n?/g, '\n').split('\n');
+    const lines = String(body || '').replace(/\r\n?/g, '\n').trim().split('\n');
     const sections = { work: [], summary: [], plan: [] };
     let section = 'work';
     let heading = '明日艾维利';
     for (let i = 0; i < lines.length; i++) {
       const label = headingOf(lines[i]);
-      if (i === 0 && /^(?:\d+月\d+日工作总结|本周工作进展)$/.test(label)) continue;
+      if (i === 0 && /^(?:(?:\d+月\d+日|\d+[.月/-]\d+)\s*工作总结|本周工作进展)$/.test(label)) continue;
       if (label === '今日艾维利') { section = 'work'; continue; }
-      if (label === '本周工作总结') { section = 'summary'; continue; }
+      if (label === '本周工作总结' || label === '本周艾维利') { section = 'summary'; continue; }
       if (PLAN_HEADINGS.includes(label)) { section = 'plan'; heading = label; continue; }
       sections[section].push(lines[i]);
     }
@@ -75,7 +82,7 @@
     return {
       work: sections.work.filter(line => line.trim()).join('\n').trim(),
       summary: sections.summary.filter(line => line.trim()).join('\n').trim(),
-      plan: sections.plan.map(line => line.replace(/^\s*\d+[、.)]\s*/, '')).join('\n').trim(),
+      plan: sections.plan.map(line => line.replace(/^\s*(?:\d+[、)]|\d+\.(?!\d))\s*/, '')).join('\n').trim(),
       heading,
       planHeading: heading,
     };
@@ -93,6 +100,66 @@
     }
     return lines.join('\n');
   }
+
+  function weekdays(week) {
+    const match = /^(\d{4})-W(\d{2})$/.exec(week);
+    if (!match || +match[2] < 1 || +match[2] > 53) return [];
+    const monday = new Date(`${match[1]}-01-04T00:00:00Z`);
+    monday.setUTCDate(4 - ((monday.getUTCDay() + 6) % 7) + (+match[2] - 1) * 7);
+    return Array.from({ length: 5 }, (_, index) => {
+      const day = new Date(monday);
+      day.setUTCDate(monday.getUTCDate() + index);
+      return day.toISOString().slice(0, 10);
+    });
+  }
+
+  function hasReportContent(body) {
+    const { work, summary, plan } = parse(body);
+    return Boolean(work || summary || plan);
+  }
+
+  function reportItem(line) {
+    const numbering = /^(?:\d+\s*[、)）]|\d+\.(?!\d))\s*/;
+    const text = line.replace(numbering, '').replace(/^[、：:]\s*/, '');
+    const match = text.match(/^(✅|✔\uFE0F?|[🚶🏃](?:[🏻-🏿])?(?:\u200D[♂♀])?\uFE0F?|❌)\s*/u);
+    const marker = match?.[1] || '';
+    const status = marker === '✅' || marker.startsWith('✔') ? '✅'
+      : /^[🚶🏃]/u.test(marker) ? IN_PROGRESS : marker;
+    const unmarked = text.slice(match?.[0].length || 0);
+    const content = (marker ? unmarked.replace(/^\d+\s*[：:](?!\d)\s*/, '') : unmarked)
+      .replace(numbering, '').replace(/^[、：:]\s*/, '').trim();
+    return { status, content };
+  }
+
+  function buildFridayDraft(friday, items) {
+    const lines = raw => raw.split('\n').map(line => line.trim().replace(/^[-*•]\s+/, '')).filter(Boolean);
+    const reports = [...items].sort((a, b) => a.key.localeCompare(b.key));
+    const today = parse(reports.find(item => item.key === friday)?.content || '');
+    const todayWork = today.work.replace(
+      /^([ \t]*(?:[-*•][ \t]+)?(?:\d+[、.)）][ \t]*)?)[🚶🏃](?:[🏻-🏿])?(?:\u200D[♂♀])?\uFE0F?/gmu,
+      `$1${IN_PROGRESS}`,
+    );
+    const entries = new Map();
+    for (const report of reports) {
+      const { work, summary } = parse(report.content);
+      for (const line of lines([work, summary].join('\n'))) {
+        const entry = reportItem(line);
+        if (!entry.content) continue;
+        const key = entry.content.replace(/\s+/g, ' ').toLowerCase();
+        const previous = entries.get(key);
+        if (entry.status || !previous) entries.set(key, entry);
+      }
+    }
+    const order = ['✅', IN_PROGRESS, '❌', ''];
+    const recap = [...entries.values()].sort((a, b) => order.indexOf(a.status) - order.indexOf(b.status));
+    const explicitPlans = today.heading.startsWith('下周') ? lines(today.plan).map(line => reportItem(line).content) : [];
+    const plans = [...new Set([...explicitPlans, ...recap.filter(item => item.status === IN_PROGRESS || item.status === '❌').map(item => item.content)].filter(Boolean))];
+    return [
+      titleFor('daily', friday), '', '今日艾维利', todayWork, '', '本周艾维利',
+      ...recap.map(({ status, content }, index) => `${status ? status + ' ' : ''}${index + 1}、${content}`),
+      '', '下周艾维利', ...plans.map((line, index) => `${index + 1}、${line}`),
+    ].join('\n').trimEnd();
+  }
   function vagueContent(content) {
     const compact = content.trim().replace(/[\s，。！!？?、；;：:,.…]/g, '');
     // Only unmistakably generic entries are rejected, not a semantic classifier.
@@ -100,6 +167,7 @@
     return !compact || /^(?:无|暂无|待定|待填写|待补充|TODO|TBD|同上|其他|略|继续|跟进|推进|处理|工作|日常工作|完成工作|完成任务|处理任务|待办事项|学习|沟通|开会|培训|完成培训|AI培训|整理|继续整理|整理文档|继续推进|继续跟进|继续优化|继续开发|开展工作|推进工作|处理工作|暂无计划|无计划|开发Agent|Agent开发)$/i.test(compact);
   }
   function validate(type, key, body) {
+    // Advisory template review only. Persistence/IPC validate safety separately.
     if (type !== 'daily' && type !== 'weekly') return '请选择有效的日报或周报类型。';
     const context = dailyContext(key);
     if (type === 'daily' && !context.valid) return '请选择有效的日报日期。';
@@ -129,13 +197,16 @@
       for (let j = 0; j < entries.length; j++) {
         const prefix = `“${label}”第 ${j + 1} 条`;
         const line = entries[j];
-        if (/✔/u.test(line) || FORBIDDEN_ING.test(line)) return `${prefix}不能使用 ing 或 ✔；请使用 ✅ / 🚶‍♂️ / ❌ 标注状态。`;
-        const match = line.match(CANONICAL_STATUS);
-        if (!match || !match[2].trim()) return `${prefix}请以 ✅、🚶‍♂️ 或 ❌ 开头，并填写实际内容；未标记时不会自动猜测进度。`;
-        if (vagueContent(match[2])) return `${prefix}过于笼统，请写清工作 + 具体目标、结果或进度，例如“完成 1 场销售部 AI 培训”。`;
+        const requiresStatus = i === 0;
+        if (/✔/u.test(line) || FORBIDDEN_ING.test(line)) return `${prefix}不能使用 ing 或 ✔；${requiresStatus ? '请使用 ✅ / 🚶‍♂️ / ❌ 标注状态。' : '直接写清工作和目标、结果或进度即可，无需状态标记。'}`;
+        const match = requiresStatus ? line.match(CANONICAL_STATUS) : null;
+        if (requiresStatus && (!match || !match[2].trim())) return `${prefix}请以 ✅、🚶‍♂️ 或 ❌ 开头，并填写实际内容；未标记时不会自动猜测进度。`;
+        // Accept existing marked plans without rewriting saved drafts; new output is plain text.
+        const content = requiresStatus ? match[2] : plainLine(splitItems(line)[0] || '');
+        if (vagueContent(content)) return `${prefix}过于笼统，请写清工作 + 具体目标、结果或进度，例如“完成 1 场销售部 AI 培训”。`;
       }
     }
     return '';
   }
-  return { dateKey, weekKey, dailyContext, splitItems, build, parse, summarizeSources, validate };
+  return { dateKey, weekKey, weekdays, dailyContext, splitItems, build, parse, summarizeSources, hasReportContent, buildFridayDraft, validate };
 });
